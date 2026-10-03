@@ -1,0 +1,47 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check packaging
+        run: python scripts/check_packaging.py
+      - name: Check Python syntax
+        run: python -m compileall -q custom_components
+      - name: Check JavaScript syntax
+        run: node --check custom_components/viewe_smart_panel/frontend/panel.js
+      - name: Run logic tests
+        run: python -m unittest discover -s tests -v
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+          comment: "false"
+          # Custom-repository installation does not submit the integration to
+          # the default HACS catalog or the Home Assistant brands repository.
+          ignore: brands

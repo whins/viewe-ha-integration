@@ -1,0 +1,8 @@
+{
+  "title": "VIEWE Smart Panel",
+  "config": {
+    "step": {"user": {"title": "VIEWE Smart Panel", "description": "Спочатку налаштуйте MQTT у Home Assistant. Профілі й панелі будуть доступні в бічному меню.", "data": {"topic_prefix": "Префікс MQTT-топіків"}}},
+    "error": {"invalid_prefix": "Введіть префікс без +, # і слешів на початку чи в кінці", "mqtt_unavailable": "Спочатку налаштуйте MQTT і підключіть його до брокера"},
+    "abort": {"already_configured": "VIEWE Smart Panel уже налаштовано"}
+  }
+}

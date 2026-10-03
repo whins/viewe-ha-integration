@@ -1,0 +1,8 @@
+{
+  "title": "VIEWE Smart Panel",
+  "config": {
+    "step": {"user": {"title": "VIEWE Smart Panel", "description": "Configure MQTT in Home Assistant first. Profiles and panels will be available in the sidebar.", "data": {"topic_prefix": "MQTT topic prefix"}}},
+    "error": {"invalid_prefix": "Enter a topic prefix without wildcards or leading/trailing slashes", "mqtt_unavailable": "Configure MQTT and connect it to the broker first"},
+    "abort": {"already_configured": "VIEWE Smart Panel is already configured"}
+  }
+}

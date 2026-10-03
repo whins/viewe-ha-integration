@@ -1,0 +1,74 @@
+"""Model tests without requiring a running Home Assistant."""
+
+import importlib.util
+from pathlib import Path
+import unittest
+
+path = Path(__file__).parents[1] / "custom_components/viewe_smart_panel/models.py"
+spec = importlib.util.spec_from_file_location("viewe_models", path)
+models = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(models)
+
+
+class ProfileTests(unittest.TestCase):
+    def ready(self):
+        profile = models.new_profile("Дім")
+        profile["pages"][0]["entity_id"] = "weather.home"
+        profile["pages"][1]["entity_id"] = "light.kitchen"
+        return profile
+
+    def test_initial_pages_and_umbrella(self):
+        profile = models.new_profile("Дім")
+        self.assertEqual([p["template"] for p in profile["pages"]], ["weather", "lighting"])
+        self.assertEqual(profile["pages"][0]["umbrella"]["probability"], 40)
+        models.validate_profile(profile)
+
+    def test_unfinished_draft_cannot_apply(self):
+        profile = models.new_profile("Дім")
+        models.validate_profile(profile)
+        with self.assertRaises(ValueError):
+            models.validate_profile(profile, apply=True, states={})
+
+    def test_hidden_empty_page_does_not_block_apply(self):
+        profile = self.ready()
+        profile["pages"][1].update(visible=False, entity_id="")
+        models.validate_profile(profile, apply=True, states={"weather.home": {}})
+        profile["pages"][0]["visible"] = False
+        with self.assertRaises(ValueError):
+            models.validate_profile(profile, apply=True, states={})
+
+    def test_duplicate_ids_rejected(self):
+        profile = self.ready()
+        profile["pages"][1]["id"] = profile["pages"][0]["id"]
+        with self.assertRaises(ValueError):
+            models.validate_profile(profile)
+
+    def test_bad_weather_threshold_and_window(self):
+        profile = self.ready()
+        u = profile["pages"][0]["umbrella"]
+        for value in (-1, 101, True, 40.5):
+            u["probability"] = value
+            with self.assertRaises(ValueError):
+                models.validate_profile(profile)
+        u["probability"] = 40
+        u["forecast_start"] = "19:00"
+        with self.assertRaises(ValueError):
+            models.validate_profile(profile)
+
+    def test_auto_rgbw_and_incompatible_override(self):
+        page = models.new_page("lighting")
+        attrs = {"supported_color_modes": ["rgbw"]}
+        self.assertEqual(models.resolve_light_type(page, attrs), "RGBW")
+        page["control_type"] = "RGBCCT"
+        with self.assertRaises(ValueError):
+            models.resolve_light_type(page, attrs)
+
+    def test_apply_returns_independent_snapshot(self):
+        profile = self.ready()
+        validated = models.validate_profile(profile, apply=True, states={"weather.home": {}, "light.kitchen": {"supported_color_modes": ["rgbww"]}})
+        self.assertEqual(validated["pages"][1]["resolved_type"], "RGBCCT")
+        self.assertNotIn("resolved_type", profile["pages"][1])
+
+
+if __name__ == "__main__":
+    unittest.main()
