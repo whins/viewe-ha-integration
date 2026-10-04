@@ -150,3 +150,7 @@ CCT opens the temperature screen; RGB and RGBW both open rgbw, using mixed
 RGB white or a separate white channel respectively. CCT requires color_temp
 or rgbww support in the HA entity. Existing firmware must be updated to
 accept CCT. Re-save and apply AUTO profiles to resolve the new type.
+
+### Switch template v1
+
+Pages use `template: "switch"` and `entity_id: "switch.*"`, with the common id, name, name_auto and visible fields. No control_type or umbrella is required. Capability `templates.switch: 1` is required. Commands use the existing page_id/profile_id/revision envelope with turn_on, turn_off or toggle and empty parameters. Targets are resolved from the applied profile; state/data and availability follow the existing contract.

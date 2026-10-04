@@ -85,9 +85,9 @@ class ViewePanel extends HTMLElement {
         else {
           content += `<h2>${this.t("profilePages")}</h2><label>${this.t("profileName")}<input data-profile-name value="${e(this.draft.name)}" maxlength="128"></label>`;
           this.draft.pages.forEach((p,index)=> {
-            content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${p.template === "lighting" ? this.t("lighting") : this.t("weather")}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
+            content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${this.t(p.template)}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
           });
-          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
+          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
         }
       }
     }
@@ -100,17 +100,18 @@ class ViewePanel extends HTMLElement {
   }
   pageForm(page) {
     const e = escapeHtml;
-    const entities = this.data.entities.filter(x=>x.entity_id.startsWith(page.template === "lighting" ? "light." : "weather."));
+    const entities = this.data.entities.filter(x=>x.entity_id.startsWith(page.template === "lighting" ? "light." : page.template === "switch" ? "switch." : "weather."));
     const entity = entities.find(x=>x.entity_id===page.entity_id);
-    let html = `<h2>${page.template === "lighting" ? this.t("lighting") : this.t("weather")}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${page.template === "lighting" ? this.t("lightEntity") : this.t("weatherEntity")}<select data-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${page.entity_id && !entity ? `<option selected value="${e(page.entity_id)}">${e(page.entity_id)} — ${this.t("missing")}</option>` : ""}${entities.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
+    let html = `<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${page.template === "lighting" ? this.t("lightEntity") : page.template === "switch" ? this.t("switchEntity") : this.t("weatherEntity")}<select data-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${page.entity_id && !entity ? `<option selected value="${e(page.entity_id)}">${e(page.entity_id)} — ${this.t("missing")}</option>` : ""}${entities.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
     if (page.template === "lighting") {
       const types = ["AUTO", ...(entity?.types || [])];
       if (!types.includes(page.control_type)) types.push(page.control_type);
       html += `<label>${this.t("controlType")}<select data-field="control_type">${types.map(type=>`<option value="${type}" ${page.control_type===type ? "selected" : ""} ${type!=="AUTO" && !entity?.types.includes(type) ? "disabled" : ""}>${type === "AUTO" ? this.t("auto") : type}</option>`).join("")}</select></label><p class="muted">${this.t("autoHelp")}</p></section>`;
-    } else {
+    } else if (page.template === "weather") {
       const u = page.umbrella;
       html += `</section><section><h3>${this.t("umbrella")}</h3><label class="check"><input type="checkbox" data-umbrella="enabled" ${u.enabled ? "checked" : ""}> ${this.t("showBanner")}</label><div class="grid"><label>${this.t("rainThreshold")}<input type="number" min="0" max="100" data-umbrella="probability" value="${u.probability}" ${!u.enabled ? "disabled" : ""}></label><label class="check"><input type="checkbox" data-umbrella="limit_time" ${u.limit_time ? "checked" : ""} ${!u.enabled ? "disabled" : ""}> ${this.t("limitTime")}</label><label>${this.t("forecastStart")}<input type="time" data-umbrella="forecast_start" value="${e(u.forecast_start)}" ${!u.enabled ? "disabled" : ""}></label><label>${this.t("forecastEnd")}<input type="time" data-umbrella="forecast_end" value="${e(u.forecast_end)}" ${!u.enabled ? "disabled" : ""}></label><label>${this.t("hideAfter")}<input type="time" data-umbrella="hide_after" value="${e(u.hide_after)}" ${!u.enabled || !u.limit_time ? "disabled" : ""}></label></div><p class="muted">${this.t("retainedSettings")}</p></section>`;
     }
+    if (page.template === "switch") html += `</section>`;
     return html;
   }
   bind() {

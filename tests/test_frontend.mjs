@@ -80,3 +80,11 @@ test("CCT appears as an available selected control type for temperature lights",
   const html=panel.pageForm({template:"lighting",name:"White",entity_id:"light.white",control_type:"CCT"});
   assert.match(html,/<option value="CCT" selected >CCT<\/option>/);
 });
+
+test("Switch form selects only switches and omits light/weather settings",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.data={entities:[{entity_id:"switch.socket",name:"Socket",types:[]},{entity_id:"light.kitchen",name:"Kitchen",types:[]}]};
+  const html=panel.pageForm({id:"s",template:"switch",name:"Socket",entity_id:"switch.socket"});
+  assert.match(html,/Switch entity/);assert.match(html,/switch.socket/);
+  assert.doesNotMatch(html,/light.kitchen|data-umbrella|control_type/);
+});

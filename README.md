@@ -170,3 +170,7 @@ Update panel firmware before applying a CCT profile: previous firmware rejects
 that resolved type. After updating HA, save and apply existing AUTO profiles
 again so temperature-only lights resolve to CCT instead of MONO. CCT has a
 single temperature button opening cct; RGB and RGBW both open rgbw.
+
+## Switch template
+
+The Switch template selects a `switch.*` entity and sends `turn_on`, `turn_off`, or `toggle` without lighting parameters. Firmware must advertise `switch: 1`; older panels cannot apply profiles containing a visible switch page. State updates come from HA. Update the integration and firmware together.

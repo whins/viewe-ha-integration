@@ -1,4 +1,6 @@
 export default {
+  "switch": "Вимикач",
+  "switchEntity": "Сутність вимикача",
   "offline": "Недоступна",
   "pending": "Очікує підтвердження",
   "applied": "Застосовано",

@@ -61,3 +61,5 @@
 - Version 0.1.3 adds CCT (2026-10-05). AUTO selects CCT for temperature-only
   lights. RGB/RGBW share the firmware rgbw screen. Update firmware before
   applying CCT; older firmware rejects the type. Device verification pending.
+
+- 2026-10-05: Switch template added for switch.* entities, bilingual editor, template compatibility and MQTT On/Off commands. 33 Python tests, 9 frontend tests and local packaging checks passed. Device/HA runtime verification pending.

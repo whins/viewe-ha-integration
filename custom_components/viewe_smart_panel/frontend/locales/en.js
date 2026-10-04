@@ -1,4 +1,6 @@
 export default {
+  "switch": "Switch",
+  "switchEntity": "Switch entity",
   "offline": "Offline",
   "pending": "Awaiting acknowledgement",
   "applied": "Applied",

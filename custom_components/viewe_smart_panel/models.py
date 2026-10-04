@@ -5,18 +5,18 @@ from datetime import time
 from uuid import uuid4
 
 LIGHT_TYPES = {"MONO", "CCT", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
-TEMPLATES = {"lighting", "weather"}
+TEMPLATES = {"lighting", "weather", "switch"}
 
 
 def new_page(template, language="uk"):
     if template not in TEMPLATES:
         raise ValueError("Невідомий шаблон сторінки")
-    page = {"id": uuid4().hex, "template": template, "name": "Освітлення" if template == "lighting" else "Погода", "visible": True, "entity_id": "", "name_auto": True}
+    page = {"id": uuid4().hex, "template": template, "name": "Освітлення" if template == "lighting" else "Вимикач" if template == "switch" else "Погода", "visible": True, "entity_id": "", "name_auto": True}
     if language != "uk":
-        page["name"] = "Lighting" if template == "lighting" else "Weather"
+        page["name"] = "Lighting" if template == "lighting" else "Switch" if template == "switch" else "Weather"
     if template == "lighting":
         page.update(control_type="AUTO")
-    else:
+    elif template == "weather":
         page["umbrella"] = {"enabled": True, "probability": 40, "forecast_start": "08:00", "forecast_end": "18:00", "limit_time": True, "hide_after": "10:00"}
     return page
 
@@ -92,13 +92,13 @@ def validate_profile(value, *, apply=False, states=None):
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
         entity = page.get("entity_id", "")
-        domain = "light" if page["template"] == "lighting" else "weather"
+        domain = "light" if page["template"] == "lighting" else "switch" if page["template"] == "switch" else "weather"
         if not isinstance(entity, str) or (entity and (not entity.startswith(domain + ".") or entity == domain + ".")):
             raise ValueError("Невідповідна сутність сторінки")
         if page["template"] == "lighting":
             if page.get("control_type") not in LIGHT_TYPES | {"AUTO"}:
                 raise ValueError("Невідомий тип освітлення")
-        else:
+        elif page["template"] == "weather":
             u = page.get("umbrella")
             if not isinstance(u, dict) or type(u.get("enabled")) is not bool or type(u.get("limit_time")) is not bool:
                 raise ValueError("Некоректні налаштування парасолі")

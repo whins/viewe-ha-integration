@@ -296,21 +296,21 @@ class VieweHub:
         profile = self.data["applied"].get(panel.get("profile_id"))
         if not profile or payload.get("profile_id") != profile["id"] or payload.get("revision") != profile["revision"]:
             raise ValueError("Команда застарілого профілю")
-        page = next((p for p in profile["pages"] if p["id"] == payload.get("page_id") and p["visible"] and p["template"] == "lighting"), None)
+        page = next((p for p in profile["pages"] if p["id"] == payload.get("page_id") and p["visible"] and p["template"] in {"lighting", "switch"}), None)
         if page is None:
-            raise ValueError("Сторінка не підтримує керування світлом")
+            raise ValueError("Сторінка не підтримує керування")
         action = payload.get("action")
         if action not in {"turn_on", "turn_off", "toggle"}:
             raise ValueError("Невідома команда")
         parameters = payload.get("parameters", {})
         if not isinstance(parameters, dict) or (action != "turn_on" and parameters):
             raise ValueError("Некоректні параметри")
-        allowed = {"brightness", "color_temp_kelvin", "rgb_color", "rgbw_color", "rgbww_color", "effect"}
+        allowed = set() if page["template"] == "switch" else {"brightness", "color_temp_kelvin", "rgb_color", "rgbw_color", "rgbww_color", "effect"}
         if parameters.keys() - allowed:
             raise ValueError("Непідтримувані параметри")
         # HA validates parameter ranges and entity capabilities; the entity target
         # is always resolved from the applied profile, never accepted over MQTT.
-        await self.hass.services.async_call("light", action, {**parameters, "entity_id": page["entity_id"]}, blocking=True)
+        await self.hass.services.async_call("switch" if page["template"] == "switch" else "light", action, {**parameters, "entity_id": page["entity_id"]}, blocking=True)
 
     async def _data(self, panel_id):
         panel = self.data["panels"][panel_id]
@@ -353,7 +353,7 @@ class VieweHub:
 
     async def _state_changed(self, event):
         entity_id = event.data["entity_id"]
-        if not entity_id.startswith(("light.", "weather.")):
+        if not entity_id.startswith(("light.", "weather.", "switch.")):
             return
         if entity_id.startswith("weather."):
             self.forecast_cache.pop(entity_id, None)
