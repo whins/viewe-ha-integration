@@ -84,8 +84,6 @@ class ViewePanel extends HTMLElement {
         if (page) content += this.pageForm(page);
         else {
           content += `<h2>${this.t("profilePages")}</h2><label>${this.t("profileName")}<input data-profile-name value="${e(this.draft.name)}" maxlength="128"></label>`;
-          const requirements=this.draft.requirements || {encoder:true,touch:true};
-          content += `<section><h3>${this.t("requirements")}</h3><label class="check"><input type="checkbox" data-requirement="encoder" ${requirements.encoder ? "checked" : ""}> ${this.t("requireEncoder")}</label><label class="check"><input type="checkbox" data-requirement="touch" ${requirements.touch ? "checked" : ""}> ${this.t("requireTouch")}</label></section>`;
           this.draft.pages.forEach((p,index)=> {
             content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${p.template === "lighting" ? this.t("lighting") : this.t("weather")}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
           });
@@ -119,11 +117,6 @@ class ViewePanel extends HTMLElement {
     const root = this.shadowRoot;
     root.querySelectorAll("button[data-action]").forEach(button=>button.addEventListener("click",()=>this.action(button.dataset.action,button.dataset.id)));
     root.querySelector("[data-profile-name]")?.addEventListener("input",event=> {this.draft.name=event.target.value;this.markDirty();});
-    root.querySelectorAll("[data-requirement]").forEach(el=>el.addEventListener("change",()=> {
-      this.draft.requirements ||= {encoder:true,touch:true};
-      this.draft.requirements[el.dataset.requirement]=el.checked;
-      this.markDirty();
-    }));
     root.querySelectorAll("[data-visible]").forEach(el=>el.addEventListener("change",()=>{this.draft.pages.find(p=>p.id===el.dataset.visible).visible=el.checked;this.dirty=true;this.render();}));
     root.querySelectorAll("[data-field]").forEach(el=>el.addEventListener(el.tagName === "INPUT" ? "input" : "change",()=> {
       const page = this.draft.pages.find(p=>p.id===this.pageId);

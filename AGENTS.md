@@ -28,16 +28,16 @@
   and Panels, lighting and weather templates, Store persistence, and MQTT protocol v1.
 - Drafts and applied snapshots are separate. Saving does not update panels.
   Unavailable panels receive the latest applied snapshot after reconnection.
-- Version 0.1.1 adds profile deletion, unassignment, bilingual editor files, and
-  explicit encoder/touch requirements (2026-10-04). Deleting an assigned profile
-  is blocked; remove its assignments first. Deletion removes draft and snapshot.
-- Panels advertise `capabilities.inputs.encoder` and `capabilities.inputs.touch`
-  as booleans. Missing capabilities are unknown and fail required-input checks.
-  Legacy profiles require both inputs; requirements are part of applied snapshots.
+- Version 0.1.2 removes profile-level encoder/touch requirements at the user's
+  request (2026-10-04). Compatibility uses template versions only. Strip legacy
+  requirements from loaded drafts/applied snapshots and during validation.
+- Profile deletion, unassignment, and the bilingual editor remain available.
+  Deleting an assigned profile is blocked; remove its assignments first.
 - Lighting capability mapping and the priority of profile selections in v0.1 are
   provisional. Limitations are documented in README.md and docs/mqtt-protocol.md.
-- As of 2026-10-03, actual loading in Home Assistant and operation on a physical
-  device have not been verified. Current firmware does not implement this contract.
+- On 2026-10-04, the user confirmed profile application, weather display, and
+  opening lighting pages on physical firmware v1. This specific integration
+  update still requires runtime verification.
 - HACS packaging targets installation as a custom public GitHub repository.
   The intended repository is `https://github.com/whins/viewe-ha-integration`,
   maintained by `@whins`; hacs.json, manifest metadata, and CI are prepared.

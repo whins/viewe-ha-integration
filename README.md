@@ -17,7 +17,6 @@ physical panel control requires compatible firmware.
 - Multiple instances of each template, up to 64 pages per profile.
 - Page names, entity selection, visibility, and ordering by drag and drop or buttons.
 - Profile deletion with confirmation and protection against deleting assigned profiles.
-- Panel input requirements: encoder and touch, checked along with template versions.
 - Automatic or manually selected compatible lighting control types.
 - Configurable “Take an umbrella” banner settings.
 - Separate **Save** and **Apply** actions, with independent draft and applied versions.
@@ -90,12 +89,6 @@ requires at least one visible page and valid entity bindings for all visible pag
 An unavailable panel receives the latest applied snapshot after reconnecting;
 unapplied draft changes are never delivered.
 
-In the profile page list, set **Encoder required** and **Touch required** under
-**Panel requirements**. Both start enabled. A required input must be explicitly
-advertised by the panel; absent capability information is treated as unknown.
-Requirements are saved with the draft and take effect when it is applied.
-Clearing a requirement does not implement alternative input behavior in firmware.
-
 To delete a profile, use **Delete profile** in the profile list and confirm.
 Assigned profiles cannot be deleted: first assign another profile or select
 **No profile** in Panels. Deletion removes both the draft and applied snapshot
@@ -118,7 +111,7 @@ node --test tests/test_frontend.mjs
 The model and MQTT behavior tests use explicit fakes at Home Assistant boundaries.
 They verify local logic, not actual loading or compatibility with an installed
 Home Assistant version. The suite covers profile lifecycle, MQTT behavior,
-input compatibility, language selection, locale parity, and editor rendering.
+template compatibility, language selection, locale parity, and editor rendering.
 Frontend tests use a lightweight DOM boundary fake, not a real browser.
 
 The GitHub validation workflow checks local tests, syntax, Home Assistant integration
@@ -132,8 +125,9 @@ panel emulator.
 
 ## Current limitations
 
-- Compatibility checks template versions (`lighting: 1`, `weather: 1`) and
-  explicitly advertised encoder/touch capabilities against profile requirements.
+- Compatibility checks template versions (`lighting: 1`, `weather: 1`).
+  Encoder and touch requirements were removed in version 0.1.2; legacy fields
+  are ignored and removed when loaded or saved.
   Layout adaptation for different display shapes and sizes is not implemented.
 - Automatic lighting type selection is provisional: ADDRESS when color support
   and an effect list are available, then RGBCCT, RGBW, RGB, MONO. These rules need

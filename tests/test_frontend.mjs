@@ -17,15 +17,15 @@ test("English and Ukrainian interface keys stay in sync",()=> {
   for(const value of Object.values(en))assert.doesNotMatch(value,/[\u0400-\u04ff]/);
 });
 
-test("English renders labels, profile requirements and delete action",()=> {
+test("English renders labels and deletion without panel requirements",()=> {
   const panel=new Panel();panel.language="en";
   panel.data={profiles:{p:{id:"p",name:"Home",revision:1,pages:[]}},applied:{},panels:{},entities:[]};
   panel.render();
   assert.match(panel.shadowRoot.innerHTML,/placeholder="New profile name"/);
   assert.match(panel.shadowRoot.innerHTML,/Delete profile/);
   panel.draft=structuredClone(panel.data.profiles.p);panel.render();
-  assert.match(panel.shadowRoot.innerHTML,/Encoder required/);
-  assert.match(panel.shadowRoot.innerHTML,/Touch required/);
+  assert.doesNotMatch(panel.shadowRoot.innerHTML,/Encoder required|Panel requirements|data-requirement/);
+  assert.doesNotMatch(panel.shadowRoot.innerHTML,/Touch required/);
   assert.doesNotMatch(panel.shadowRoot.innerHTML,/\$\{this\.t|=this\.t/);
 });
 

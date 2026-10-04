@@ -3,7 +3,6 @@ const messages = {
   "Профіль не знайдено": "Profile not found",
   "Профіль змінено в іншому вікні. Оновіть редактор": "This profile changed in another window. Refresh the editor",
   "Спочатку змініть або скасуйте призначення профілю панелям": "Change or remove panel assignments before deleting this profile",
-  "Некоректні вимоги до енкодера або дотиків": "Invalid encoder or touch requirements",
   "Виберіть панель і застосований профіль": "Choose a panel and an applied profile",
   "Профіль несумісний із панеллю": "The profile is incompatible with this panel",
   "Інтеграція не завантажена": "The integration is not loaded",

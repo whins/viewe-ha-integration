@@ -41,6 +41,10 @@ class VieweHub:
         saved = await self.store.async_load()
         if saved:
             self.data = saved
+            for collection in ("profiles", "applied"):
+                for profile in self.data[collection].values():
+                    profile.pop("requirements", None)
+            await self.store.async_save(self.data)
         try:
             for suffix in ("hello", "availability", "ack", "command"):
                 self.unsubscribers.append(await mqtt.async_subscribe(self.hass, f"{self.prefix}/panels/+/{suffix}", self._message, qos=1))

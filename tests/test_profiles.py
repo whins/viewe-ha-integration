@@ -69,25 +69,17 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(validated["pages"][1]["resolved_type"], "RGBCCT")
         self.assertNotIn("resolved_type", profile["pages"][1])
 
-    def test_input_compatibility_requires_explicit_capabilities(self):
+    def test_input_capabilities_and_obsolete_requirements_do_not_filter_profiles(self):
         profile = self.ready()
-        panel = {"capabilities": {"templates": {"lighting": 1, "weather": 1}, "inputs": {"encoder": True, "touch": True}}}
+        profile["requirements"] = {"encoder": True, "touch": True}
+        panel = {"capabilities": {"templates": {"lighting": 1, "weather": 1}}}
         self.assertTrue(models.panel_compatible(panel, profile))
-        panel["capabilities"]["inputs"]["touch"] = False
-        self.assertFalse(models.panel_compatible(panel, profile))
-        profile["requirements"] = {"encoder": True, "touch": False}
+        panel["capabilities"]["inputs"] = {"encoder": False, "touch": False}
         self.assertTrue(models.panel_compatible(panel, profile))
-        panel["capabilities"].pop("inputs")
+        self.assertNotIn("requirements", models.validate_profile(profile))
+        self.assertNotIn("requirements", models.new_profile("Home"))
+        panel["capabilities"]["templates"].pop("weather")
         self.assertFalse(models.panel_compatible(panel, profile))
-
-    def test_legacy_profile_defaults_and_invalid_requirements(self):
-        profile = self.ready()
-        profile.pop("requirements")
-        self.assertEqual(models.validate_profile(profile)["requirements"], {"encoder": True, "touch": True})
-        for requirements in (None, {}, {"encoder": 1, "touch": True}, {"encoder": True, "touch": True, "extra": False}):
-            profile["requirements"] = requirements
-            with self.assertRaises(ValueError):
-                models.validate_profile(profile)
 
     def test_new_english_page_names(self):
         profile = models.new_profile("Home", "en")

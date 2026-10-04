@@ -22,24 +22,15 @@ def new_page(template, language="uk"):
 
 
 def new_profile(name, language="uk"):
-    return {"id": uuid4().hex, "name": name, "revision": 0, "requirements": {"encoder": True, "touch": True}, "pages": [new_page("weather", language), new_page("lighting", language)]}
-
-
-def profile_requirements(profile):
-    """Existing profiles use the inputs required by the initial UI design."""
-    return profile.get("requirements", {"encoder": True, "touch": True})
+    return {"id": uuid4().hex, "name": name, "revision": 0, "pages": [new_page("weather", language), new_page("lighting", language)]}
 
 
 def panel_compatible(panel, profile):
     capabilities = panel.get("capabilities", {})
     templates = capabilities.get("templates", {})
-    inputs = capabilities.get("inputs", {})
-    if not isinstance(templates, dict) or not isinstance(inputs, dict):
+    if not isinstance(templates, dict):
         return False
-    return (
-        all(not required or inputs.get(name) is True for name, required in profile_requirements(profile).items())
-        and all(templates.get(p["template"]) == 1 for p in profile["pages"] if p["visible"])
-    )
+    return all(templates.get(p["template"]) == 1 for p in profile["pages"] if p["visible"])
 
 
 def supported_light_types(attributes):
@@ -79,10 +70,7 @@ def validate_profile(value, *, apply=False, states=None):
     if not isinstance(value, dict):
         raise ValueError("Очікується профіль")
     profile = deepcopy(value)
-    requirements = profile_requirements(profile)
-    if not isinstance(requirements, dict) or set(requirements) != {"encoder", "touch"} or any(type(v) is not bool for v in requirements.values()):
-        raise ValueError("Некоректні вимоги до енкодера або дотиків")
-    profile["requirements"] = deepcopy(requirements)
+    profile.pop("requirements", None)  # Ignore and remove obsolete input requirements.
     for field in ("id", "name"):
         if not isinstance(profile.get(field), str) or not profile[field].strip() or len(profile[field]) > 128:
             raise ValueError("Профіль повинен мати ID та назву до 128 символів")

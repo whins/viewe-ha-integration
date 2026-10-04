@@ -55,16 +55,12 @@ id, template, name, visible, entity_id, name_auto, and template-specific setting
 Lighting pages include control_type and resolved_type. Weather pages include umbrella.
 Hidden pages are transferred to preserve configuration, but are not displayed.
 
-Profiles include `requirements: {"encoder": true, "touch": true}` by default.
-Both keys must be booleans. Required inputs must be explicitly advertised as
-`true` under `capabilities.inputs` in hello. Missing or false inputs fail the
-corresponding requirement. Legacy profiles without requirements require both
-encoder and touch. Profiles that do not require an input do not imply that the
-firmware has implemented a replacement interaction.
-
-The same compatibility rule is used by Apply, HA assignment, panel-side profile
-selection, catalog delivery, and the editor's list of selectable profiles.
-Input requirements use the applied snapshot, not an unapplied draft.
+Profile-level encoder/touch requirements were removed in integration version 0.1.2.
+Legacy `requirements` fields are ignored and removed when loaded or saved.
+Panel input capabilities can still be reported for information, but do not filter
+profiles. Compatibility checks supported template versions for visible pages.
+The same rule is used by Apply, assignment, panel-side selection, catalogs, and
+the editor's list of selectable profiles.
 
 HA can remove an assignment with `config: {"protocol":1,"profile":null}`.
 The panel must clear its active profile and disable controls tied to the old

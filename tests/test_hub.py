@@ -190,12 +190,13 @@ class HubTests(unittest.IsolatedAsyncioTestCase):
             await self.hub.async_delete_profile(self.profile["id"], -1)
         self.assertIn(self.profile["id"], self.hub.data["profiles"])
 
-    async def test_input_requirements_block_application_and_catalog(self):
+    async def test_missing_input_capabilities_do_not_block_application_or_catalog(self):
+        self.hub.data["panels"]["panel1"]["capabilities"].pop("inputs")
+        self.profile["requirements"] = {"encoder": True, "touch": True}
+        self.profile = await self.hub.async_save_profile(self.profile)
         await self.hub.async_apply_profile(self.profile["id"])
-        self.hub.data["panels"]["panel1"]["capabilities"]["inputs"]["encoder"] = False
-        self.assertEqual(self.hub.snapshot()["panels"]["panel1"]["compatible_profiles"], [])
-        with self.assertRaises(ValueError):
-            await self.hub.async_apply_profile(self.profile["id"])
+        self.assertNotIn("requirements", self.hub.data["applied"][self.profile["id"]])
+        self.assertEqual(self.hub.snapshot()["panels"]["panel1"]["compatible_profiles"], [self.profile["id"]])
 
     async def test_delete_failed_save_preserves_profile(self):
         await self.hub.async_assign("panel1", None)
