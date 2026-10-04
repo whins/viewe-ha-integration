@@ -130,9 +130,10 @@ panel emulator.
   are ignored and removed when loaded or saved.
   Layout adaptation for different display shapes and sizes is not implemented.
 - Automatic lighting type selection is provisional: ADDRESS when color support
-  and an effect list are available, then RGBCCT, RGBW, RGB, MONO. These rules need
-  verification against real entities. Color-temperature-only lights currently
-  use MONO control.
+  and an effect list are available, then RGBCCT, RGBW, RGB, CCT, MONO. These rules need
+  verification against real entities. Color-temperature-only lights now
+  use CCT control. CCT is selectable for color_temp or rgbww capabilities;
+  RGB and RGBW both use the firmware rgbw screen.
 - Weather passes raw forecasts and entity units. Time-slot aggregation, the
   meaning of the large overview temperature, the start of the umbrella display
   window, and missing-forecast display behavior remain open design questions.
@@ -162,3 +163,10 @@ The implementation follows Home Assistant's
 and [custom panel](https://developers.home-assistant.io/docs/frontend/custom-ui/creating-custom-panels/)
 interfaces. All runtime assets, including the sidebar JavaScript, are bundled inside
 `custom_components/viewe_smart_panel`.
+
+## CCT support (0.1.3)
+
+Update panel firmware before applying a CCT profile: previous firmware rejects
+that resolved type. After updating HA, save and apply existing AUTO profiles
+again so temperature-only lights resolve to CCT instead of MONO. CCT has a
+single temperature button opening cct; RGB and RGBW both open rgbw.

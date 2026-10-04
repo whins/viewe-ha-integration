@@ -57,3 +57,7 @@
 - Run syntax and packaging checks appropriate to the changed files. Documentation
   changes alone do not require rerunning behavior tests.
 - Update this file and README when the project state changes materially.
+
+- Version 0.1.3 adds CCT (2026-10-05). AUTO selects CCT for temperature-only
+  lights. RGB/RGBW share the firmware rgbw screen. Update firmware before
+  applying CCT; older firmware rejects the type. Device verification pending.

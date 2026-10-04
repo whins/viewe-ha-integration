@@ -142,3 +142,11 @@ The initial concurrency rule is that the last processed selection from HA or a
 panel becomes active. This is a provisional implementation of the open priority
 question. An offline local selection cannot be processed by HA; firmware must
 store it and reconcile it after reconnecting. That behavior is not implemented yet.
+
+## Lighting types in integration 0.1.3
+
+Allowed resolved types: MONO, CCT, RGB, RGBW, RGBCCT, ADDRESS.
+CCT opens the temperature screen; RGB and RGBW both open rgbw, using mixed
+RGB white or a separate white channel respectively. CCT requires color_temp
+or rgbww support in the HA entity. Existing firmware must be updated to
+accept CCT. Re-save and apply AUTO profiles to resolve the new type.

@@ -4,7 +4,7 @@ from copy import deepcopy
 from datetime import time
 from uuid import uuid4
 
-LIGHT_TYPES = {"MONO", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
+LIGHT_TYPES = {"MONO", "CCT", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
 TEMPLATES = {"lighting", "weather"}
 
 
@@ -36,6 +36,8 @@ def panel_compatible(panel, profile):
 def supported_light_types(attributes):
     modes = set(attributes.get("supported_color_modes", []))
     result = ["MONO"] if modes - {"onoff", "unknown"} else []
+    if modes & {"color_temp", "rgbww"}:
+        result.append("CCT")
     if modes & {"hs", "xy", "rgb", "rgbw", "rgbww"}:
         result.append("RGB")
     if "rgbw" in modes:
@@ -51,7 +53,7 @@ def resolve_light_type(page, attributes):
     supported = supported_light_types(attributes)
     chosen = page.get("control_type", "AUTO")
     if chosen == "AUTO":
-        for candidate in ("ADDRESS", "RGBCCT", "RGBW", "RGB", "MONO"):
+        for candidate in ("ADDRESS", "RGBCCT", "RGBW", "RGB", "CCT", "MONO"):
             if candidate in supported:
                 return candidate
     elif chosen in supported:

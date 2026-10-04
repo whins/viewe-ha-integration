@@ -73,3 +73,10 @@ test("English detail forms render both templates without unresolved labels",()=>
   assert.match(weather,/Rain probability threshold/);
   assert.doesNotMatch(lighting+weather,/\$\{this\.t|=this\.t|[\u0400-\u04ff]/);
 });
+
+test("CCT appears as an available selected control type for temperature lights",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.data={entities:[{entity_id:"light.white",name:"White",types:["MONO","CCT"]}]};
+  const html=panel.pageForm({template:"lighting",name:"White",entity_id:"light.white",control_type:"CCT"});
+  assert.match(html,/<option value="CCT" selected >CCT<\/option>/);
+});

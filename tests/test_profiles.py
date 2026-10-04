@@ -85,6 +85,25 @@ class ProfileTests(unittest.TestCase):
         profile = models.new_profile("Home", "en")
         self.assertEqual([p["name"] for p in profile["pages"]], ["Weather", "Lighting"])
 
+    def test_cct_auto_manual_and_color_only_rejection(self):
+        page = models.new_page("lighting")
+        attributes = {"supported_color_modes": ["color_temp"]}
+        self.assertEqual(models.resolve_light_type(page, attributes), "CCT")
+        page["control_type"] = "CCT"
+        self.assertEqual(models.resolve_light_type(page, attributes), "CCT")
+        self.assertIn("CCT", models.supported_light_types({"supported_color_modes": ["rgbww"]}))
+        self.assertNotIn("CCT", models.supported_light_types({"supported_color_modes": ["rgbw"]}))
+        with self.assertRaises(ValueError):
+            models.resolve_light_type(page, {"supported_color_modes": ["rgb"]})
+
+    def test_applied_cct_snapshot_and_rgb_types(self):
+        profile = self.ready()
+        profile["pages"][1]["control_type"] = "CCT"
+        result = models.validate_profile(profile, apply=True, states={"weather.home": {}, "light.kitchen": {"supported_color_modes": ["color_temp"]}})
+        self.assertEqual(result["pages"][1]["resolved_type"], "CCT")
+        for mode, expected in (("rgb", "RGB"), ("rgbw", "RGBW"), ("rgbww", "RGBCCT")):
+            self.assertEqual(models.resolve_light_type(models.new_page("lighting"), {"supported_color_modes": [mode]}), expected)
+
 
 if __name__ == "__main__":
     unittest.main()
