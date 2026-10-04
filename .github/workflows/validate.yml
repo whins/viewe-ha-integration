@@ -27,6 +27,8 @@ jobs:
         run: node --check custom_components/viewe_smart_panel/frontend/panel.js
       - name: Run logic tests
         run: python -m unittest discover -s tests -v
+      - name: Run frontend tests
+        run: node --test tests/test_frontend.mjs
 
   hassfest:
     runs-on: ubuntu-latest

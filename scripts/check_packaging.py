@@ -21,7 +21,7 @@ def check():
     integration_dirs = sorted(p.name for p in components.iterdir() if p.is_dir() and not p.name.startswith(".") and p.name != "__pycache__")
     require(integration_dirs == [DOMAIN], "Exactly one integration must be packaged under custom_components.")
     integration = components / DOMAIN
-    for relative in ("__init__.py", "config_flow.py", "frontend/panel.js", "strings.json", "translations/uk.json"):
+    for relative in ("__init__.py", "config_flow.py", "frontend/panel.js", "frontend/locales/en.js", "frontend/locales/uk.js", "frontend/locales/errors.js", "strings.json", "translations/uk.json"):
         require((integration / relative).is_file(), f"Missing runtime asset: {relative}")
 
     json_values = {}
@@ -45,6 +45,20 @@ def check():
     require(hacs.get("content_in_root") is False, "Runtime content belongs in custom_components, not the repository root.")
     require(hacs.get("render_readme") is True, "HACS should render the English README.")
     require(not hacs.get("zip_release"), "This package uses repository files, not a release archive.")
+
+    locale_values = {}
+    for language in ("en", "uk"):
+        path = integration / "frontend" / "locales" / f"{language}.js"
+        try:
+            source = path.read_text(encoding="utf-8")
+            locale_values[language] = json.loads(source.removeprefix("export default ").strip().removesuffix(";"))
+        except (OSError, ValueError) as err:
+            errors.append(f"Invalid interface dictionary {language}: {err}")
+    if "en" in locale_values and "uk" in locale_values:
+        require(locale_values["en"].keys() == locale_values["uk"].keys(), "Update English and Ukrainian interface dictionaries together.")
+        panel_source = (integration / "frontend" / "panel.js").read_text(encoding="utf-8")
+        for key in re.findall(r'this\.t\("([A-Za-z]+)"\)', panel_source):
+            require(key in locale_values["en"], f"Missing interface translation key: {key}")
 
     documents = [ROOT / "README.md", ROOT / "AGENTS.md", *sorted((ROOT / "docs").rglob("*.md"))]
     for path in documents:

@@ -5,7 +5,9 @@
 - Communicate with the user in Ukrainian.
 - Write and maintain README files, AGENTS files, and all repository documentation
   in English. This is a public-repository requirement approved on 2026-10-03.
-- Documentation translation does not authorize changing the editor's UI language.
+- The editor supports Ukrainian and English using shared logic and separate
+  `frontend/locales/uk.js` and `frontend/locales/en.js` dictionaries. Update both
+  dictionaries for every UI change and run `node --test tests/test_frontend.mjs`.
 - Do not create commits or publish anything without the user's explicit instruction.
 - Never add broker credentials, tokens, or local Home Assistant configuration to Git.
 
@@ -26,6 +28,12 @@
   and Panels, lighting and weather templates, Store persistence, and MQTT protocol v1.
 - Drafts and applied snapshots are separate. Saving does not update panels.
   Unavailable panels receive the latest applied snapshot after reconnection.
+- Version 0.1.1 adds profile deletion, unassignment, bilingual editor files, and
+  explicit encoder/touch requirements (2026-10-04). Deleting an assigned profile
+  is blocked; remove its assignments first. Deletion removes draft and snapshot.
+- Panels advertise `capabilities.inputs.encoder` and `capabilities.inputs.touch`
+  as booleans. Missing capabilities are unknown and fail required-input checks.
+  Legacy profiles require both inputs; requirements are part of applied snapshots.
 - Lighting capability mapping and the priority of profile selections in v0.1 are
   provisional. Limitations are documented in README.md and docs/mqtt-protocol.md.
 - As of 2026-10-03, actual loading in Home Assistant and operation on a physical

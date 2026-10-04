@@ -61,7 +61,7 @@ class HubTests(unittest.IsolatedAsyncioTestCase):
             SimpleNamespace(entity_id="light.kitchen", attributes={"supported_color_modes": ["rgbw"]}),
         ]
         self.profile = await self.hub.async_save_profile(self.profile)
-        self.hub.data["panels"]["panel1"] = {"id": "panel1", "name": "Кухня", "profile_id": self.profile["id"], "capabilities": {"templates": {"lighting": 1, "weather": 1}}}
+        self.hub.data["panels"]["panel1"] = {"id": "panel1", "name": "Кухня", "profile_id": self.profile["id"], "capabilities": {"templates": {"lighting": 1, "weather": 1}, "inputs": {"encoder": True, "touch": True}}}
 
     async def message(self, suffix, payload, retain=False):
         await self.hub._message(SimpleNamespace(topic=f"viewe/panels/panel1/{suffix}", payload=json.dumps({"protocol": 1, **payload}), retain=retain))
@@ -165,6 +165,59 @@ class HubTests(unittest.IsolatedAsyncioTestCase):
         data = json.loads(mqtt.async_publish.call_args.args[2])
         weather = data["pages"][self.profile["pages"][0]["id"]]
         self.assertEqual(weather["forecasts"], {"daily": None, "hourly": None})
+
+    async def test_delete_assigned_profile_is_rejected(self):
+        before = deepcopy(self.hub.data)
+        with self.assertRaises(ValueError):
+            await self.hub.async_delete_profile(self.profile["id"], self.profile["revision"])
+        self.assertEqual(self.hub.data, before)
+
+    async def test_unassign_then_delete_removes_draft_and_applied_snapshot(self):
+        await self.hub.async_apply_profile(self.profile["id"])
+        self.hub.online.add("panel1")
+        await self.hub.async_assign("panel1", None)
+        config = json.loads(mqtt.async_publish.call_args.args[2])
+        self.assertIsNone(config["profile"])
+        await self.hub.async_delete_profile(self.profile["id"], self.profile["revision"])
+        self.assertNotIn(self.profile["id"], self.hub.data["profiles"])
+        self.assertNotIn(self.profile["id"], self.hub.store.saved["applied"])
+        catalog = json.loads(mqtt.async_publish.call_args.args[2])
+        self.assertEqual(catalog["profiles"], [])
+
+    async def test_delete_stale_revision_rejected(self):
+        await self.hub.async_assign("panel1", None)
+        with self.assertRaises(ValueError):
+            await self.hub.async_delete_profile(self.profile["id"], -1)
+        self.assertIn(self.profile["id"], self.hub.data["profiles"])
+
+    async def test_input_requirements_block_application_and_catalog(self):
+        await self.hub.async_apply_profile(self.profile["id"])
+        self.hub.data["panels"]["panel1"]["capabilities"]["inputs"]["encoder"] = False
+        self.assertEqual(self.hub.snapshot()["panels"]["panel1"]["compatible_profiles"], [])
+        with self.assertRaises(ValueError):
+            await self.hub.async_apply_profile(self.profile["id"])
+
+    async def test_delete_failed_save_preserves_profile(self):
+        await self.hub.async_assign("panel1", None)
+        before = deepcopy(self.hub.data)
+        self.hub.store.async_save = AsyncMock(side_effect=OSError("Disk full"))
+        with self.assertRaises(OSError):
+            await self.hub.async_delete_profile(self.profile["id"], self.profile["revision"])
+        self.assertEqual(self.hub.data, before)
+
+    async def test_offline_unassignment_clears_after_reconnect(self):
+        await self.hub.async_apply_profile(self.profile["id"])
+        result = await self.hub.async_assign("panel1", None)
+        self.assertEqual(result, "offline")
+        mqtt.async_publish.reset_mock()
+        await self.message("availability", {"state": "online"})
+        configs = [json.loads(c.args[2]) for c in mqtt.async_publish.call_args_list if c.args[1].endswith("/config")]
+        self.assertIsNone(configs[-1]["profile"])
+
+    async def test_malformed_input_capabilities_do_not_replace_panel(self):
+        before = deepcopy(self.hub.data)
+        await self.message("hello", {"name":"Bad", "capabilities":{"templates":{"weather":1},"inputs":{"touch":"true"}}})
+        self.assertEqual(self.hub.data, before)
 
 
 if __name__ == "__main__":

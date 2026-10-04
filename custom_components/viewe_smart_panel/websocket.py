@@ -14,7 +14,7 @@ def async_register_commands(hass):
 @websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): f"{DOMAIN}/editor",
-    vol.Required("action"): vol.In(["get", "create", "save", "apply", "assign", "page"]),
+    vol.Required("action"): vol.In(["get", "create", "save", "apply", "assign", "page", "delete"]),
     vol.Optional("payload", default={}): dict,
 })
 @websocket_api.async_response
@@ -33,15 +33,17 @@ async def editor_command(hass, connection, msg):
                 for s in hass.states.async_all() if s.domain in {"light", "weather"}
             ]
         elif action == "create":
-            result = await hub.async_create_profile(payload["name"])
+            result = await hub.async_create_profile(payload["name"], payload.get("language", "uk"))
         elif action == "save":
             result = await hub.async_save_profile(payload["profile"])
         elif action == "apply":
             result = await hub.async_apply_profile(payload["profile_id"])
         elif action == "assign":
             result = await hub.async_assign(payload["panel_id"], payload["profile_id"])
+        elif action == "delete":
+            result = await hub.async_delete_profile(payload["profile_id"], payload["revision"])
         else:
-            result = new_page(payload["template"])
+            result = new_page(payload["template"], payload.get("language", "uk"))
         connection.send_result(msg["id"], result)
     except (ValueError, KeyError, TypeError) as err:
         connection.send_error(msg["id"], "invalid_config", str(err))

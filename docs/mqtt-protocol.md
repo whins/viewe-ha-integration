@@ -27,7 +27,7 @@ On connection and on an `announce` request, it publishes hello followed by a liv
 online message:
 
 ```json
-{"protocol":1,"name":"Kitchen","capabilities":{"templates":{"lighting":1,"weather":1}}}
+{"protocol":1,"name":"Kitchen","capabilities":{"templates":{"lighting":1,"weather":1},"inputs":{"encoder":true,"touch":true}}}
 ```
 
 ```json
@@ -54,6 +54,28 @@ A profile contains id, name, revision, and an ordered pages array. Each page inc
 id, template, name, visible, entity_id, name_auto, and template-specific settings.
 Lighting pages include control_type and resolved_type. Weather pages include umbrella.
 Hidden pages are transferred to preserve configuration, but are not displayed.
+
+Profiles include `requirements: {"encoder": true, "touch": true}` by default.
+Both keys must be booleans. Required inputs must be explicitly advertised as
+`true` under `capabilities.inputs` in hello. Missing or false inputs fail the
+corresponding requirement. Legacy profiles without requirements require both
+encoder and touch. Profiles that do not require an input do not imply that the
+firmware has implemented a replacement interaction.
+
+The same compatibility rule is used by Apply, HA assignment, panel-side profile
+selection, catalog delivery, and the editor's list of selectable profiles.
+Input requirements use the applied snapshot, not an unapplied draft.
+
+HA can remove an assignment with `config: {"protocol":1,"profile":null}`.
+The panel must clear its active profile and disable controls tied to the old
+profile. Offline panels receive this on reconnection. The current integration
+reports an online unassignment after sending it; there is no separate clear ack.
+
+The profiles catalog is authoritative: replace the cached catalog and remove
+entries absent from it, including an empty catalog. Profile deletion removes
+both draft and applied snapshots and is blocked while any panel is assigned.
+After deletion, connected panels receive a refreshed catalog; offline panels
+receive it after reconnecting. This requires compatible firmware cache handling.
 
 The panel validates and atomically accepts the profile, stores it locally, then
 acknowledges success:

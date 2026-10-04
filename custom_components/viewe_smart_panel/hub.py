@@ -16,7 +16,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.const import EVENT_STATE_CHANGED
 
 from .const import DOMAIN, PROTOCOL_VERSION, STORAGE_VERSION
-from .models import new_profile, validate_profile
+from .models import new_profile, validate_profile, panel_compatible
 
 _LOGGER = logging.getLogger(__name__)
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -89,15 +89,16 @@ class VieweHub:
         for panel_id, panel in result["panels"].items():
             panel["online"] = panel_id in self.online and mqtt.is_connected(self.hass)
             panel["result"] = self.results.get(panel_id, "offline") if panel["online"] else "offline"
+            panel["compatible_profiles"] = [profile_id for profile_id, profile in self.data["applied"].items() if self.compatible(panel, profile)]
         return result
 
     async def _persist(self, updated):
         await self.store.async_save(updated)
         self.data = updated
 
-    async def async_create_profile(self, name):
+    async def async_create_profile(self, name, language="uk"):
         async with self.lock:
-            profile = validate_profile(new_profile(name))
+            profile = validate_profile(new_profile(name, language))
             updated = deepcopy(self.data)
             updated["profiles"][profile["id"]] = profile
             await self._persist(updated)
@@ -118,9 +119,28 @@ class VieweHub:
             return profile
 
     def compatible(self, panel, profile):
-        capabilities = panel.get("capabilities", {})
-        templates = capabilities.get("templates", {})
-        return all(templates.get(p["template"]) == 1 for p in profile["pages"] if p["visible"])
+        return panel_compatible(panel, profile)
+
+    async def async_delete_profile(self, profile_id, revision):
+        async with self.lock:
+            current = self.data["profiles"].get(profile_id)
+            if current is None:
+                raise ValueError("Профіль не знайдено")
+            if current["revision"] != revision:
+                raise ValueError("Профіль змінено в іншому вікні. Оновіть редактор")
+            if any(p.get("profile_id") == profile_id for p in self.data["panels"].values()):
+                raise ValueError("Спочатку змініть або скасуйте призначення профілю панелям")
+            updated = deepcopy(self.data)
+            del updated["profiles"][profile_id]
+            updated["applied"].pop(profile_id, None)
+            await self._persist(updated)
+            for panel_id in self.online:
+                if panel_id in self.data["panels"]:
+                    try:
+                        await self._catalog(panel_id)
+                    except Exception:
+                        _LOGGER.exception("Could not refresh catalog after profile deletion for %s", panel_id)
+            return {"deleted": profile_id}
 
     async def async_apply_profile(self, profile_id):
         async with self.lock:
@@ -147,9 +167,9 @@ class VieweHub:
 
     async def async_assign(self, panel_id, profile_id):
         async with self.lock:
-            if panel_id not in self.data["panels"] or profile_id not in self.data["applied"]:
+            if panel_id not in self.data["panels"] or (profile_id is not None and profile_id not in self.data["applied"]):
                 raise ValueError("Виберіть панель і застосований профіль")
-            if not self.compatible(self.data["panels"][panel_id], self.data["applied"][profile_id]):
+            if profile_id is not None and not self.compatible(self.data["panels"][panel_id], self.data["applied"][profile_id]):
                 raise ValueError("Профіль несумісний із панеллю")
             updated = deepcopy(self.data)
             updated["panels"][panel_id]["profile_id"] = profile_id
@@ -171,7 +191,13 @@ class VieweHub:
         panel = self.data["panels"][panel_id]
         profile = self.data["applied"].get(panel.get("profile_id"))
         if not profile:
-            return "unassigned"
+            try:
+                await self._publish(panel_id, "config", {"protocol": PROTOCOL_VERSION, "profile": None})
+                self.results[panel_id] = "unassigned"
+            except Exception:
+                _LOGGER.exception("Could not clear profile for panel %s", panel_id)
+                self.results[panel_id] = "error"
+            return self.results[panel_id]
         if not self.compatible(panel, profile):
             self.results[panel_id] = "incompatible"
             return "incompatible"
@@ -202,6 +228,9 @@ class VieweHub:
                     name, capabilities = payload.get("name"), payload.get("capabilities")
                     if not isinstance(name, str) or not 1 <= len(name) <= 128 or not isinstance(capabilities, dict) or not isinstance(capabilities.get("templates"), dict):
                         raise ValueError("Некоректний опис панелі")
+                    inputs = capabilities.get("inputs", {})
+                    if not isinstance(inputs, dict) or any(type(v) is not bool for v in inputs.values()):
+                        raise ValueError("Некоректні можливості вводу панелі")
                     updated = deepcopy(self.data)
                     panel = updated["panels"].setdefault(panel_id, {"id": panel_id, "profile_id": None})
                     panel.update(name=name, capabilities=capabilities)
