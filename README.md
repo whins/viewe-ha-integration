@@ -1,7 +1,7 @@
 # VIEWE Smart Panel for Home Assistant
 
 A custom Home Assistant integration for VIEWE smart panels, with shared profiles
-and a sidebar editor. The first page templates are **Lighting** and **Weather**.
+and a sidebar editor. Available page templates are **Lighting**, **Weather**, and **Switch**.
 Panel communication uses the MQTT integration already configured in Home Assistant.
 
 **Development version:** this integration has not yet been tested in a running
@@ -14,7 +14,7 @@ physical panel control requires compatible firmware.
 - Initial setup through Config Flow; one profile hub per Home Assistant instance.
 - Sidebar editor with **Profiles** and **Panels** sections.
 - New profiles start with Weather, followed by Lighting.
-- Multiple instances of each template, up to 64 pages per profile.
+- Multiple instances of Lighting, Weather, or Switch, up to 64 pages per profile.
 - Page names, entity selection, visibility, and ordering by drag and drop or buttons.
 - Profile deletion with confirmation and protection against deleting assigned profiles.
 - Automatic or manually selected compatible lighting control types.
@@ -174,3 +174,8 @@ single temperature button opening cct; RGB and RGBW both open rgbw.
 ## Switch template
 
 The Switch template selects a `switch.*` entity and sends `turn_on`, `turn_off`, or `toggle` without lighting parameters. Firmware must advertise `switch: 1`; older panels cannot apply profiles containing a visible switch page. State updates come from HA. Update the integration and firmware together.
+
+Switch support is packaged in version 0.1.4. Add a page, choose Switch, select
+a switch entity, then Save and Apply the profile. New profiles still start with
+Weather and Lighting; Switch is added explicitly. Runtime verification of
+Switch in HA and on the panel is pending.

@@ -63,3 +63,7 @@
   applying CCT; older firmware rejects the type. Device verification pending.
 
 - 2026-10-05: Switch template added for switch.* entities, bilingual editor, template compatibility and MQTT On/Off commands. 33 Python tests, 9 frontend tests and local packaging checks passed. Device/HA runtime verification pending.
+
+- Version 0.1.4 packages the existing Switch implementation for HACS updates
+  (2026-10-05). New profiles retain Weather/Lighting defaults; Switch pages
+  are added explicitly. Firmware requires capabilities.templates.switch: 1.
