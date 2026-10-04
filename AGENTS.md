@@ -67,3 +67,5 @@
 - Version 0.1.4 packages the existing Switch implementation for HACS updates
   (2026-10-05). New profiles retain Weather/Lighting defaults; Switch pages
   are added explicitly. Firmware requires capabilities.templates.switch: 1.
+
+- 2026-10-05: Added Actions template (scripts/automations), one or two named touch targets, vertically stacked with a horizontal divider. Integration editor configures targets and optional names. MQTT run uses a validated action_index resolved against the applied profile; offline targets are disabled independently. Firmware build and 37 Python tests passed; physical panel/HA runtime verification pending. No upload or commits performed.

@@ -30,7 +30,7 @@ async def editor_command(hass, connection, msg):
             result["entities"] = [
                 {"entity_id": s.entity_id, "name": s.attributes.get("friendly_name", s.entity_id),
                  "types": supported_light_types(s.attributes) if s.domain == "light" else []}
-                for s in hass.states.async_all() if s.domain in {"light", "weather", "switch"}
+                for s in hass.states.async_all() if s.domain in {"light", "weather", "switch", "script", "automation"}
             ]
         elif action == "create":
             result = await hub.async_create_profile(payload["name"], payload.get("language", "uk"))

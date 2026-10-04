@@ -1,5 +1,7 @@
 // Translate legacy server messages without rewriting user-entered names.
 const messages = {
+  "Оберіть одну або дві дії": "Choose one or two actions",
+  "Некоректна дія": "Invalid action",
   "Профіль не знайдено": "Profile not found",
   "Профіль змінено в іншому вікні. Оновіть редактор": "This profile changed in another window. Refresh the editor",
   "Спочатку змініть або скасуйте призначення профілю панелям": "Change or remove panel assignments before deleting this profile",

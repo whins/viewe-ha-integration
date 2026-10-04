@@ -179,3 +179,9 @@ Switch support is packaged in version 0.1.4. Add a page, choose Switch, select
 a switch entity, then Save and Apply the profile. New profiles still start with
 Weather and Lighting; Switch is added explicitly. Runtime verification of
 Switch in HA and on the panel is pending.
+
+## Scripts and automations (2026-10-05)
+
+The Actions template displays one or two script/automation names. Two targets occupy the upper and lower halves separated by a horizontal line. Tap a name to run it; unavailable targets are disabled independently. Add Scripts / automations in the profile editor, select 1 or 2 actions, choose script.* or automation.* entities, and optionally supply display names (blank uses the HA friendly name when applying). Update both firmware and integration before applying. Firmware advertises actions template version 1. Device and real HA verification remain pending.
+
+Scripts use script.turn_on. Automations use automation.trigger with HA default condition skipping, including disabled automations. This runs actions manually; it does not enable the automation. Script variables and simulated trigger data are not configurable in this template.

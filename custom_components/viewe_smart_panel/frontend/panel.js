@@ -87,7 +87,7 @@ class ViewePanel extends HTMLElement {
           this.draft.pages.forEach((p,index)=> {
             content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${this.t(p.template)}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
           });
-          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
+          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option><option value="actions">${this.t("actions")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
         }
       }
     }
@@ -100,6 +100,10 @@ class ViewePanel extends HTMLElement {
   }
   pageForm(page) {
     const e = escapeHtml;
+    if (page.template === "actions") {
+      const targets = this.data.entities.filter(x=>/^(script|automation)\./.test(x.entity_id));
+      return `<h2>${this.t("actions")}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${this.t("actionCount")}<select data-action-count><option value="1" ${page.actions.length===1 ? "selected" : ""}>1</option><option value="2" ${page.actions.length===2 ? "selected" : ""}>2</option></select></label>${page.actions.map((a,i)=>`<label>${this.t("actionTarget")} ${i+1}<select data-run-index="${i}" data-run-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${a.entity_id && !targets.some(x=>x.entity_id===a.entity_id) ? `<option selected value="${e(a.entity_id)}">${e(a.entity_id)} — ${this.t("missing")}</option>` : ""}${targets.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===a.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label><label>${this.t("actionName")}<input data-run-index="${i}" data-run-field="name" value="${e(a.name)}" maxlength="128"></label>`).join("")}</section>`;
+    }
     const entities = this.data.entities.filter(x=>x.entity_id.startsWith(page.template === "lighting" ? "light." : page.template === "switch" ? "switch." : "weather."));
     const entity = entities.find(x=>x.entity_id===page.entity_id);
     let html = `<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${page.template === "lighting" ? this.t("lightEntity") : page.template === "switch" ? this.t("switchEntity") : this.t("weatherEntity")}<select data-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${page.entity_id && !entity ? `<option selected value="${e(page.entity_id)}">${e(page.entity_id)} — ${this.t("missing")}</option>` : ""}${entities.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
@@ -116,6 +120,17 @@ class ViewePanel extends HTMLElement {
   }
   bind() {
     const root = this.shadowRoot;
+    root.querySelector("[data-action-count]")?.addEventListener("change",event=> {
+      const page = this.draft.pages.find(p=>p.id===this.pageId);
+      if (event.target.value === "2") page.actions.push({entity_id:"",name:""});
+      else page.actions = page.actions.slice(0,1);
+      this.markDirty(); this.render();
+    });
+    root.querySelectorAll("[data-run-index]").forEach(el=>el.addEventListener(el.tagName === "INPUT" ? "input" : "change",()=> {
+      const page = this.draft.pages.find(p=>p.id===this.pageId);
+      page.actions[Number(el.dataset.runIndex)][el.dataset.runField] = el.value;
+      this.markDirty();
+    }));
     root.querySelectorAll("button[data-action]").forEach(button=>button.addEventListener("click",()=>this.action(button.dataset.action,button.dataset.id)));
     root.querySelector("[data-profile-name]")?.addEventListener("input",event=> {this.draft.name=event.target.value;this.markDirty();});
     root.querySelectorAll("[data-visible]").forEach(el=>el.addEventListener("change",()=>{this.draft.pages.find(p=>p.id===el.dataset.visible).visible=el.checked;this.dirty=true;this.render();}));

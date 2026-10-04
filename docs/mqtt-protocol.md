@@ -154,3 +154,11 @@ accept CCT. Re-save and apply AUTO profiles to resolve the new type.
 ### Switch template v1
 
 Pages use `template: "switch"` and `entity_id: "switch.*"`, with the common id, name, name_auto and visible fields. No control_type or umbrella is required. Capability `templates.switch: 1` is required. Commands use the existing page_id/profile_id/revision envelope with turn_on, turn_off or toggle and empty parameters. Targets are resolved from the applied profile; state/data and availability follow the existing contract.
+
+## Actions template v1
+
+A page uses `template: "actions"` and an `actions` array of one or two objects containing `entity_id` (script.* or automation.*) and `name`. Applied snapshots resolve empty names from HA. Panels advertise `capabilities.templates.actions: 1`; older panels are incompatible with visible Actions pages.
+
+Page data contains `actions: [{"state": "off"}, ...]` in configuration order. Unknown/unavailable states disable only the corresponding target. Both on and off allow manual execution.
+
+A command includes the usual protocol/request/profile/revision/page fields, `action: "run"`, and zero-based integer `action_index`. No parameters are accepted. HA resolves the target from its applied snapshot and validates current availability. Scripts call script.turn_on; automations call automation.trigger with default condition skipping. Command result confirms service acceptance, not completion of the entire script/automation.

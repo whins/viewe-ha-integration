@@ -88,3 +88,13 @@ test("Switch form selects only switches and omits light/weather settings",()=> {
   assert.match(html,/Switch entity/);assert.match(html,/switch.socket/);
   assert.doesNotMatch(html,/light.kitchen|data-umbrella|control_type/);
 });
+
+
+test("Actions form supports two targets, filters domains and escapes labels",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.data={entities:[{entity_id:"script.scene",name:"Scene"},{entity_id:"automation.scene",name:"Automation"},{entity_id:"light.room",name:"Room"}]};
+  const html=panel.pageForm({template:"actions",name:"Actions",actions:[{entity_id:"script.scene",name:"<Start>"},{entity_id:"automation.scene",name:""}]});
+  assert.match(html,/script.scene/);assert.match(html,/automation.scene/);
+  assert.match(html,/value="2" selected/);assert.match(html,/&lt;Start&gt;/);
+  assert.match(html,/data-run-index="1"/);assert.doesNotMatch(html,/light.room/);
+});

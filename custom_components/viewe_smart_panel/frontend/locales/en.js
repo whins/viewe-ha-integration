@@ -1,4 +1,9 @@
 export default {
+  "actions": "Scripts / automations",
+  "actionCount": "Number of actions",
+  "actionTarget": "Script or automation",
+  "actionName": "Name (blank — HA name)",
+
   "switch": "Switch",
   "switchEntity": "Switch entity",
   "offline": "Offline",

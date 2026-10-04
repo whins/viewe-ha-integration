@@ -5,7 +5,7 @@ from datetime import time
 from uuid import uuid4
 
 LIGHT_TYPES = {"MONO", "CCT", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
-TEMPLATES = {"lighting", "weather", "switch"}
+TEMPLATES = {"lighting", "weather", "switch", "actions"}
 
 
 def new_page(template, language="uk"):
@@ -14,6 +14,9 @@ def new_page(template, language="uk"):
     page = {"id": uuid4().hex, "template": template, "name": "Освітлення" if template == "lighting" else "Вимикач" if template == "switch" else "Погода", "visible": True, "entity_id": "", "name_auto": True}
     if language != "uk":
         page["name"] = "Lighting" if template == "lighting" else "Switch" if template == "switch" else "Weather"
+    if template == "actions":
+        page["name"] = "Скрипти / автоматизації" if language == "uk" else "Scripts / automations"
+        page["actions"] = [{"entity_id": "", "name": ""}]
     if template == "lighting":
         page.update(control_type="AUTO")
     elif template == "weather":
@@ -91,6 +94,24 @@ def validate_profile(value, *, apply=False, states=None):
             raise ValueError("Сторінка повинна мати назву до 128 символів")
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
+        if page["template"] == "actions":
+            actions = page.get("actions")
+            if not isinstance(actions, list) or not 1 <= len(actions) <= 2:
+                raise ValueError("Оберіть одну або дві дії")
+            for item in actions:
+                if not isinstance(item, dict):
+                    raise ValueError("Некоректна дія")
+                target = item.get("entity_id", "")
+                label = item.get("name", "")
+                if not isinstance(target, str) or (target and (not target.startswith(("script.", "automation.")) or not target.split(".", 1)[1])):
+                    raise ValueError("Невідповідна сутність сторінки")
+                if not isinstance(label, str) or len(label) > 128:
+                    raise ValueError("Сторінка повинна мати назву до 128 символів")
+                if apply and page["visible"]:
+                    if not target or states is None or target not in states:
+                        raise ValueError(f"Виберіть наявну сутність для сторінки «{page['name']}»")
+                    item["name"] = label.strip() or states[target].get("friendly_name") or target
+            continue
         entity = page.get("entity_id", "")
         domain = "light" if page["template"] == "lighting" else "switch" if page["template"] == "switch" else "weather"
         if not isinstance(entity, str) or (entity and (not entity.startswith(domain + ".") or entity == domain + ".")):

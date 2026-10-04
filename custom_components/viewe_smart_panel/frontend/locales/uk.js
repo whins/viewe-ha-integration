@@ -1,4 +1,9 @@
 export default {
+  "actions": "Скрипти / автоматизації",
+  "actionCount": "Кількість дій",
+  "actionTarget": "Скрипт або автоматизація",
+  "actionName": "Назва (порожня — назва з HA)",
+
   "switch": "Вимикач",
   "switchEntity": "Сутність вимикача",
   "offline": "Недоступна",

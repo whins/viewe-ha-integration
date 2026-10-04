@@ -296,9 +296,20 @@ class VieweHub:
         profile = self.data["applied"].get(panel.get("profile_id"))
         if not profile or payload.get("profile_id") != profile["id"] or payload.get("revision") != profile["revision"]:
             raise ValueError("Команда застарілого профілю")
-        page = next((p for p in profile["pages"] if p["id"] == payload.get("page_id") and p["visible"] and p["template"] in {"lighting", "switch"}), None)
+        page = next((p for p in profile["pages"] if p["id"] == payload.get("page_id") and p["visible"] and p["template"] in {"lighting", "switch", "actions"}), None)
         if page is None:
             raise ValueError("Сторінка не підтримує керування")
+        if page["template"] == "actions":
+            index = payload.get("action_index")
+            if payload.get("action") != "run" or type(index) is not int or not 0 <= index < len(page["actions"]) or payload.get("parameters", {}):
+                raise ValueError("Некоректні параметри")
+            target = page["actions"][index]["entity_id"]
+            state = self.hass.states.get(target)
+            if state is None or state.state in {"unknown", "unavailable"}:
+                raise ValueError("Сутність недоступна")
+            domain = target.split(".", 1)[0]
+            await self.hass.services.async_call(domain, "trigger" if domain == "automation" else "turn_on", {"entity_id": target}, blocking=True)
+            return
         action = payload.get("action")
         if action not in {"turn_on", "turn_off", "toggle"}:
             raise ValueError("Невідома команда")
@@ -320,6 +331,13 @@ class VieweHub:
         pages = {}
         for page in profile["pages"]:
             if not page["visible"]:
+                continue
+            if page["template"] == "actions":
+                items = []
+                for action in page["actions"]:
+                    target = self.hass.states.get(action["entity_id"])
+                    items.append({"state": target.state if target else "unavailable"})
+                pages[page["id"]] = {"actions": items}
                 continue
             state = self.hass.states.get(page["entity_id"])
             item = {"state": state.state if state else "unavailable", "attributes": dict(state.attributes) if state else {}}
@@ -353,7 +371,7 @@ class VieweHub:
 
     async def _state_changed(self, event):
         entity_id = event.data["entity_id"]
-        if not entity_id.startswith(("light.", "weather.", "switch.")):
+        if not entity_id.startswith(("light.", "weather.", "switch.", "script.", "automation.")):
             return
         if entity_id.startswith("weather."):
             self.forecast_cache.pop(entity_id, None)
@@ -362,7 +380,7 @@ class VieweHub:
                 continue
             panel = self.data["panels"][panel_id]
             profile = self.data["applied"].get(panel.get("profile_id"))
-            if profile and any(p["visible"] and p["entity_id"] == entity_id for p in profile["pages"]):
+            if profile and any(p["visible"] and (p.get("entity_id") == entity_id or any(a["entity_id"] == entity_id for a in p.get("actions", []))) for p in profile["pages"]):
                 try:
                     await self._data(panel_id)
                 except Exception:
