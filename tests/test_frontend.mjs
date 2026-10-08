@@ -12,6 +12,17 @@ globalThis.customElements={define:(_name,component)=>{Panel=component;}};
 globalThis.window={confirm:()=>true};
 await import("../custom_components/viewe_smart_panel/frontend/panel.js");
 
+test("BC-250 selects a power button and running sensor independently",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.data={entities:[{entity_id:"button.power",name:"Power"},{entity_id:"binary_sensor.running",name:"Running"},{entity_id:"switch.psu",name:"PSU"}]};
+  const html=panel.pageForm({template:"bc250",name:"BC-250",entity_id:"binary_sensor.running",power_entity_id:"button.power"});
+  assert.match(html,/data-field="power_entity_id"/);
+  assert.match(html,/selected>Power/);
+  assert.match(html,/selected>Running/);
+  assert.doesNotMatch(html,/switch.psu/);
+  assert.match(html,/10 seconds/);
+});
+
 test("English and Ukrainian interface keys stay in sync",()=> {
   assert.deepEqual(Object.keys(en).sort(),Object.keys(uk).sort());
   for(const value of Object.values(en))assert.doesNotMatch(value,/[\u0400-\u04ff]/);

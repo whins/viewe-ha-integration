@@ -1,5 +1,11 @@
 # VIEWE Smart Panel — Home Assistant integration
 
+- 2026-10-09: BC-250 start-only template added (`bc250: 1`). Editor selects
+  BC250 Power (`button.*`) and BC250 Running / TPMS1 (`binary_sensor.*`).
+  Both entities must be available; `start` rechecks confirmed off before
+  button.press because the controller's Power button toggles shutdown when on.
+  Panel pulse timeout is 10 seconds. Physical/HA runtime verification pending.
+
 ## Language and collaboration
 
 - Communicate with the user in Ukrainian.

@@ -5,7 +5,7 @@ from datetime import time
 from uuid import uuid4
 
 LIGHT_TYPES = {"MONO", "CCT", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
-TEMPLATES = {"lighting", "weather", "switch", "actions"}
+TEMPLATES = {"lighting", "weather", "switch", "actions", "bc250"}
 
 
 def new_page(template, language="uk"):
@@ -14,6 +14,8 @@ def new_page(template, language="uk"):
     page = {"id": uuid4().hex, "template": template, "name": "Освітлення" if template == "lighting" else "Вимикач" if template == "switch" else "Погода", "visible": True, "entity_id": "", "name_auto": True}
     if language != "uk":
         page["name"] = "Lighting" if template == "lighting" else "Switch" if template == "switch" else "Weather"
+    if template == "bc250":
+        page.update(name="BC-250", power_entity_id="")
     if template == "actions":
         page["name"] = "Скрипти / автоматизації" if language == "uk" else "Scripts / automations"
         page["actions"] = [{"entity_id": "", "name": ""}]
@@ -94,6 +96,14 @@ def validate_profile(value, *, apply=False, states=None):
             raise ValueError("Сторінка повинна мати назву до 128 символів")
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
+        if page["template"] == "bc250":
+            for field, domain in (("entity_id", "binary_sensor"), ("power_entity_id", "button")):
+                target = page.get(field, "")
+                if not isinstance(target, str) or (target and (not target.startswith(domain + ".") or target == domain + ".")):
+                    raise ValueError("Невідповідна сутність сторінки")
+                if apply and page["visible"] and (not target or states is None or target not in states):
+                    raise ValueError(f"Виберіть наявну сутність для сторінки «{page['name']}»")
+            continue
         if page["template"] == "actions":
             actions = page.get("actions")
             if not isinstance(actions, list) or not 1 <= len(actions) <= 2:

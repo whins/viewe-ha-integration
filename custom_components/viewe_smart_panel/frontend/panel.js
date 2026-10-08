@@ -87,7 +87,7 @@ class ViewePanel extends HTMLElement {
           this.draft.pages.forEach((p,index)=> {
             content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${this.t(p.template)}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
           });
-          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option><option value="actions">${this.t("actions")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
+          content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option><option value="bc250">${this.t("bc250")}</option><option value="actions">${this.t("actions")}</option></select>${this.button("add",this.t("addPage"))}</div>`;
         }
       }
     }
@@ -100,6 +100,10 @@ class ViewePanel extends HTMLElement {
   }
   pageForm(page) {
     const e = escapeHtml;
+    if (page.template === "bc250") {
+      const picker = (field,domain,label) => `<label>${this.t(label)}<select data-field="${field}"><option value="">${this.t("chooseEntity")}</option>${page[field] && !this.data.entities.some(x=>x.entity_id===page[field]) ? `<option selected value="${e(page[field])}">${e(page[field])} — ${this.t("missing")}</option>` : ""}${this.data.entities.filter(x=>x.entity_id.startsWith(domain+".")).map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page[field] ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
+      return `<h2>BC-250</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label>${picker("power_entity_id","button","bc250Power")}${picker("entity_id","binary_sensor","bc250Running")}<p class="muted">${this.t("bc250Help")}</p></section>`;
+    }
     if (page.template === "actions") {
       const targets = this.data.entities.filter(x=>/^(script|automation)\./.test(x.entity_id));
       return `<h2>${this.t("actions")}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${this.t("actionCount")}<select data-action-count><option value="1" ${page.actions.length===1 ? "selected" : ""}>1</option><option value="2" ${page.actions.length===2 ? "selected" : ""}>2</option></select></label>${page.actions.map((a,i)=>`<label>${this.t("actionTarget")} ${i+1}<select data-run-index="${i}" data-run-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${a.entity_id && !targets.some(x=>x.entity_id===a.entity_id) ? `<option selected value="${e(a.entity_id)}">${e(a.entity_id)} — ${this.t("missing")}</option>` : ""}${targets.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===a.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label><label>${this.t("actionName")}<input data-run-index="${i}" data-run-field="name" value="${e(a.name)}" maxlength="128"></label>`).join("")}</section>`;

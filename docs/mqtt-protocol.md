@@ -162,3 +162,16 @@ A page uses `template: "actions"` and an `actions` array of one or two objects c
 Page data contains `actions: [{"state": "off"}, ...]` in configuration order. Unknown/unavailable states disable only the corresponding target. Both on and off allow manual execution.
 
 A command includes the usual protocol/request/profile/revision/page fields, `action: "run"`, and zero-based integer `action_index`. No parameters are accepted. HA resolves the target from its applied snapshot and validates current availability. Scripts call script.turn_on; automations call automation.trigger with default condition skipping. Command result confirms service acceptance, not completion of the entire script/automation.
+# BC-250 template extension (v1)
+
+Capability: `templates.bc250: 1`. Page fields: `template: "bc250"`,
+`entity_id: "binary_sensor.…"` (Running/TPMS1), `power_entity_id: "button.…"`
+(Power). Data: `{ "state": "on|off|unavailable", "available": true|false }`.
+Availability requires both entities. Entity changes trigger fresh data.
+
+Command: `action: "start"`, page_id and the current profile identity/revision,
+no parameters. The integration resolves both targets from the applied profile,
+requires confirmed off and an available button, then calls `button.press`.
+Retained commands and repeated request IDs follow existing rejection/dedup rules.
+Command success is not Running confirmation. Firmware pulses until state on,
+loss of availability, or a 10-second UI timeout; late on still takes effect.

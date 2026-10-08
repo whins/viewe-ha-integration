@@ -185,3 +185,16 @@ Switch in HA and on the panel is pending.
 The Actions template displays one or two script/automation names. Two targets occupy the upper and lower halves separated by a horizontal line. Tap a name to run it; unavailable targets are disabled independently. Add Scripts / automations in the profile editor, select 1 or 2 actions, choose script.* or automation.* entities, and optionally supply display names (blank uses the HA friendly name when applying). Update both firmware and integration before applying. Firmware advertises actions template version 1. Device and real HA verification remain pending.
 
 Scripts use script.turn_on. Automations use automation.trigger with HA default condition skipping, including disabled automations. This runs actions manually; it does not enable the automation. Script variables and simulated trigger data are not configurable in this template.
+# BC-250 power page
+
+Add a **BC-250** page in the profile editor. Select the ESPHome **BC250 Power**
+button and **BC250 Running** binary sensor (TPMS1); entity IDs depend on your
+installation. Save and apply the profile after updating firmware that advertises
+`capabilities.templates.bc250: 1`.
+
+The page starts only while confirmed off. The Steam icon pulses for up to 10
+seconds, returns to gray on timeout and allows retry; on confirmation it becomes
+blue/white. Offline is crossed out and disabled. HA rechecks Running before
+pressing the controller button; the page cannot request shutdown. The UI timeout
+does not change ESPHome's own startup deadlines or cut PSU power. Runtime checks
+on the panel and in Home Assistant remain pending.

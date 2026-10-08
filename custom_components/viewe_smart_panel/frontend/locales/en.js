@@ -1,4 +1,9 @@
 export default {
+  "bc250": "BC-250",
+  "bc250Power": "BC250 Power button",
+  "bc250Running": "BC250 Running sensor (TPMS1)",
+  "bc250Help": "Start only. Pulses until confirmation, up to 10 seconds; then tap to retry.",
+
   "actions": "Scripts / automations",
   "actionCount": "Number of actions",
   "actionTarget": "Script or automation",
