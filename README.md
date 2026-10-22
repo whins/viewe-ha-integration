@@ -1,29 +1,31 @@
 # VIEWE Smart Panel for Home Assistant
 
 A custom Home Assistant integration for VIEWE smart panels, with shared profiles
-and a sidebar editor. Available page templates are **Lighting**, **Weather**, and **Switch**.
-Panel communication uses the MQTT integration already configured in Home Assistant.
+and a sidebar editor. Version **0.2.0** supports **ESPHome Native API** and
+optional legacy **MQTT** transport. Widgets include Lighting, Weather, Switch,
+Actions, Clock, Temperature / humidity, Thermostat and the BC-250 switch preset.
 
-**Development version:** this integration has not yet been tested in a running
-Home Assistant instance or on a physical panel. The existing panel firmware does
-not implement the MQTT contract yet. You can test the profile editor independently;
-physical panel control requires compatible firmware.
+**Development version:** local tests pass, but this version still requires
+verification in a running Home Assistant instance and on the physical display.
+Firmware compatible with the selected transport is required.
 
 ## Features
 
 - Initial setup through Config Flow; one profile hub per Home Assistant instance.
 - Sidebar editor with **Profiles** and **Panels** sections.
 - New profiles start with Weather, followed by Lighting.
-- Multiple instances of Lighting, Weather, or Switch, up to 64 pages per profile.
+- Multiple widget instances: up to 16 visible widgets / 8 KB for ESPHome;
+  the legacy editor storage supports up to 64 pages.
 - Page names, entity selection, visibility, and ordering by drag and drop or buttons.
 - Profile deletion with confirmation and protection against deleting assigned profiles.
-- Automatic or manually selected compatible lighting control types.
+- Automatic lighting capabilities in ESPHome; optional manual types for legacy MQTT.
 - Configurable “Take an umbrella” banner settings.
 - Separate **Save** and **Apply** actions, with independent draft and applied versions.
 - Validation before applying, and a delivery result for each assigned panel.
 - Delivery of the latest applied version when an unavailable panel reconnects.
-- A catalog of compatible applied profiles for selection on the panel.
-- Lighting commands, entity state updates, and raw daily/hourly weather forecasts.
+- Compatible applied profiles in HA; legacy MQTT also sends an on-panel catalog.
+- Native API state/control/forecast handling through the standard ESPHome integration;
+  legacy MQTT retains its state and command adapter.
 - Panel acknowledgements, heartbeat monitoring, and bounded command deduplication.
 
 The sidebar editor follows the Home Assistant user language: Ukrainian uses
@@ -32,9 +34,17 @@ Both files share one editor implementation and must be updated together.
 New page names follow the current language; existing names are preserved.
 The integration setup flow provides English strings and a Ukrainian translation.
 
+## ESPHome Native API (0.2.0)
+
+The new ESPHome firmware is supported alongside the legacy MQTT firmware.
+See [ESPHome setup and the widget forms](docs/esphome-native-api.md) before
+assigning a profile. The editor now includes Clock, Temperature / humidity and
+Thermostat widgets, label visibility, internal-page selection and icon options.
+
 ## Requirements
 
-- Home Assistant with a configured MQTT integration connected to a broker.
+- Home Assistant with the standard ESPHome integration for Native API panels.
+- For legacy panels only: a configured MQTT integration connected to a broker.
 - An administrator account for access to the profile editor.
 - HACS for installation through a custom GitHub repository, or file access for
   manual installation.
@@ -55,8 +65,8 @@ After this repository has been published as a public GitHub repository:
 5. Restart Home Assistant.
 6. Go to **Settings → Devices & services → Add integration** and select
    **VIEWE Smart Panel**.
-7. Keep the MQTT topic prefix `viewe`, unless you need to isolate a different set
-   of panels.
+7. Leave MQTT disabled for ESPHome. For legacy firmware, enable MQTT and keep
+   the topic prefix `viewe` unless your panels use a different prefix.
 8. Open **VIEWE Smart Panel** in the sidebar.
 
 HACS downloads the integration files; adding the integration through Home Assistant
@@ -92,8 +102,9 @@ unapplied draft changes are never delivered.
 To delete a profile, use **Delete profile** in the profile list and confirm.
 Assigned profiles cannot be deleted: first assign another profile or select
 **No profile** in Panels. Deletion removes both the draft and applied snapshot
-and refreshes online panels' catalogs. Offline panels receive the authoritative
-catalog and active configuration on reconnect; `profile: null` clears an assignment.
+and refreshes online panels' catalogs. Offline MQTT panels receive the authoritative
+catalog and active configuration on reconnect; `profile: null` clears an MQTT
+assignment. Native API unassignment queues a device reset to YAML.
 
 Broker credentials belong exclusively to the Home Assistant MQTT integration.
 Do not add secrets, local `configuration.yaml`, or `.storage` files to this repository.
@@ -111,7 +122,8 @@ node --test tests/test_frontend.mjs
 The model and MQTT behavior tests use explicit fakes at Home Assistant boundaries.
 They verify local logic, not actual loading or compatibility with an installed
 Home Assistant version. The suite covers profile lifecycle, MQTT behavior,
-template compatibility, language selection, locale parity, and editor rendering.
+template compatibility, Native API discovery/receipts/reset/resume, firmware limits,
+language selection, locale parity, and editor rendering.
 Frontend tests use a lightweight DOM boundary fake, not a real browser.
 
 The GitHub validation workflow checks local tests, syntax, Home Assistant integration
@@ -120,34 +132,32 @@ Remote validation has not been run yet. See
 [HACS publishing](docs/hacs-publishing.md) for the remaining publication steps.
 
 Runtime verification still requires a test Home Assistant instance, desktop and
-mobile inspection of the editor, an MQTT broker, and compatible firmware or a
-panel emulator.
+mobile inspection of the editor and compatible firmware. An MQTT broker is
+required only when verifying legacy transport.
 
 ## Current limitations
 
-- Compatibility checks template versions (`lighting: 1`, `weather: 1`).
-  Encoder and touch requirements were removed in version 0.1.2; legacy fields
-  are ignored and removed when loaded or saved.
-  Layout adaptation for different display shapes and sizes is not implemented.
-- Automatic lighting type selection is provisional: ADDRESS when color support
-  and an effect list are available, then RGBCCT, RGBW, RGB, CCT, MONO. These rules need
-  verification against real entities. Color-temperature-only lights now
-  use CCT control. CCT is selectable for color_temp or rgbww capabilities;
-  RGB and RGBW both use the firmware rgbw screen.
-- Weather passes raw forecasts and entity units. Time-slot aggregation, the
-  meaning of the large overview temperature, the start of the umbrella display
-  window, and missing-forecast display behavior remain open design questions.
-- Color preview, knob confirmation/cancellation, parameter restoration, and
-  encoder behavior belong to a future firmware implementation.
-- Diagnostic entities, Home Assistant device registration, panel deletion,
-  and export/import are not implemented.
-- Editor status updates are manual, using **Refresh status**.
-- The command cache holds up to 1024 entries in memory. Firmware must not replay
-  old commands after a Home Assistant restart or after they leave the cache.
-- Configure MQTT access and topic ACLs in the broker. Panel IDs are not credentials;
-  each panel should be restricted to its permitted topics.
+- Native API discovery uses HA ESPHome runtime fields isolated in `native.py`.
+  Real HA runtime compatibility must be checked; no minimum HA version is claimed.
+- ESPHome profile compatibility uses the exact bundled firmware schema. Legacy
+  MQTT compatibility uses advertised template versions and excludes new options.
+- ESPHome supports automatic lighting types and whole-hour umbrella settings.
+  Existing MQTT profiles with manual types or minute offsets need adjustment
+  before Native API assignment; conversion does not silently change them.
+- Native profile selection is currently in HA; the component has no profile
+  catalog action. Display-side reset returns to YAML and blocks remote overrides
+  until explicitly resumed in HA.
+- Screensaver and hardware settings remain in ESPHome YAML.
+- BC-250 requires a guard script installed separately in HA; its existence is
+  checked, but custom script behavior cannot be inferred by this integration.
+- Diagnostic entities, panel deletion, export/import and display-shape adaptation
+  are not implemented. Editor status updates use **Refresh status**.
+- Legacy MQTT's bounded command cache is not a persistent replay journal.
+  Configure broker topic ACLs for legacy devices; panel IDs are not credentials.
 
 ## Documentation
+
+- [ESPHome Native API setup and widget forms](docs/esphome-native-api.md)
 
 - [MQTT protocol v1](docs/mqtt-protocol.md)
 - [HACS packaging and publication](docs/hacs-publishing.md)
@@ -171,7 +181,7 @@ that resolved type. After updating HA, save and apply existing AUTO profiles
 again so temperature-only lights resolve to CCT instead of MONO. CCT has a
 single temperature button opening cct; RGB and RGBW both open rgbw.
 
-## Switch template
+## Switch template (legacy MQTT)
 
 The Switch template selects a `switch.*` entity and sends `turn_on`, `turn_off`, or `toggle` without lighting parameters. Firmware must advertise `switch: 1`; older panels cannot apply profiles containing a visible switch page. State updates come from HA. Update the integration and firmware together.
 
@@ -185,12 +195,13 @@ Switch in HA and on the panel is pending.
 The Actions template displays one or two script/automation names. Two targets occupy the upper and lower halves separated by a horizontal line. Tap a name to run it; unavailable targets are disabled independently. Add Scripts / automations in the profile editor, select 1 or 2 actions, choose script.* or automation.* entities, and optionally supply display names (blank uses the HA friendly name when applying). Update both firmware and integration before applying. Firmware advertises actions template version 1. Device and real HA verification remain pending.
 
 Scripts use script.turn_on. Automations use automation.trigger with HA default condition skipping, including disabled automations. This runs actions manually; it does not enable the automation. Script variables and simulated trigger data are not configurable in this template.
-# BC-250 power page
+## BC-250 power page (legacy MQTT)
 
 Add a **BC-250** page in the profile editor. Select the ESPHome **BC250 Power**
 button and **BC250 Running** binary sensor (TPMS1); entity IDs depend on your
 installation. Save and apply the profile after updating firmware that advertises
-`capabilities.templates.bc250: 1`.
+`capabilities.templates.bc250: 1`. ESPHome setup uses the guarded switch preset
+described in the [Native API guide](docs/esphome-native-api.md).
 
 The page starts only while confirmed off. The Steam icon pulses for up to 10
 seconds, returns to gray on timeout and allows retry; on confirmation it becomes

@@ -6,6 +6,19 @@
   button.press because the controller's Power button toggles shutdown when on.
   Panel pulse timeout is 10 seconds. Physical/HA runtime verification pending.
 
+- 2026-10-23: Version 0.2.0 adds ESPHome Native API profile delivery alongside
+  optional legacy MQTT. Standard HA ESPHome owns the API session and credentials.
+  Native discovery uses RuntimeEntryData (device_info/services/available) isolated
+  in native.py and registry MAC/config-entry identity. All four VIEWE actions are
+  required; duplicate node names are ignored. Firmware profile.py is bundled
+  verbatim as native_profile_schema.py; keep it synchronized with the component.
+  New forms cover clock, room sensors, thermostat, label visibility, disabled
+  internal pages and icon/layout options. BC-250 requires the bundled HA guard
+  script or an equivalent selected script. Local reset latches persist; only an
+  explicit assignment/resume may call allow_remote_profiles. Native profiles
+  are limited to 16 widgets/8192 UTF-8 bytes. HA runtime verification is pending;
+  local boundary tests do not prove installation or hardware behavior.
+
 ## Language and collaboration
 
 - Communicate with the user in Ukrainian.

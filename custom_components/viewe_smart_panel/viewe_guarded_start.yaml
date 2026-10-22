@@ -1,0 +1,39 @@
+# Home Assistant package. Include under homeassistant.packages or merge script:
+# into your existing scripts configuration. Entity IDs are supplied by the panel.
+script:
+  viewe_guarded_start:
+    alias: VIEWE guarded BC-250 start
+    mode: single
+    fields:
+      state_entity_id:
+        required: true
+        selector:
+          entity:
+            domain: [binary_sensor, switch]
+      control_entity_id:
+        required: true
+        selector:
+          entity:
+            domain: button
+    sequence:
+      - if:
+          - condition: template
+            value_template: >-
+              {{ state_entity_id is string and control_entity_id is string
+                 and (state_entity_id.startswith('binary_sensor.') or state_entity_id.startswith('switch.'))
+                 and control_entity_id.startswith('button.')
+                 and is_state(state_entity_id, 'off')
+                 and expand(control_entity_id) | list | count == 1
+                 and states(control_entity_id) != 'unavailable' }}
+        then:
+          - action: button.press
+            target:
+              entity_id: "{{ control_entity_id }}"
+          # Hold the single-run lock while TPMS/Running confirms startup.
+          # A second panel cannot press the same power button during this window.
+          - wait_template: "{{ is_state(state_entity_id, 'on') }}"
+            timeout: "00:00:10"
+            continue_on_timeout: true
+        else:
+          - stop: BC-250 is not confirmed off or control is unavailable
+            error: true

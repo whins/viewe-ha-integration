@@ -109,3 +109,41 @@ test("Actions form supports two targets, filters domains and escapes labels",()=
   assert.match(html,/value="2" selected/);assert.match(html,/&lt;Start&gt;/);
   assert.match(html,/data-run-index="1"/);assert.doesNotMatch(html,/light.room/);
 });
+
+
+test("New widget forms expose only relevant entities and preserve hidden labels",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.data={entities:[{entity_id:"sensor.temp",name:"Temperature"},{entity_id:"climate.room",name:"Climate"},{entity_id:"switch.room",name:"Switch"}]};
+  const clock=panel.pageForm({template:"clock",name:"Clock",format:"12h",show_label:false});
+  assert.match(clock,/value="12h" selected/);
+  assert.doesNotMatch(clock,/data-field="show_label" checked|data-field="entity_id"|climate.room/);
+  const room=panel.pageForm({template:"temperature_humidity",name:"Room",temperature_entity_id:"sensor.temp"});
+  assert.match(room,/sensor.temp/);assert.match(room,/humidity_entity_id/);
+  assert.doesNotMatch(room,/climate.room|switch.room/);
+  const climate=panel.pageForm({template:"thermostat",name:"Climate",entity_id:"climate.room",variant:"heater",temperature_unit:"°F",disabled_pages:["swing"]});
+  assert.match(climate,/climate.room/);assert.match(climate,/value="heater" selected/);
+  assert.match(climate,/value="°F" selected/);assert.match(climate,/data-disable-page="swing" checked/);
+  assert.doesNotMatch(climate,/sensor.temp|switch.room/);
+});
+
+test("Label checkbox and internal page handlers save actual booleans and page names",()=> {
+  const panel=new Panel();panel.language="en";
+  panel.draft={pages:[{id:"one",show_label:true,disabled_pages:[]}]};panel.pageId="one";
+  const callbacks={};
+  const label={tagName:"INPUT",type:"checkbox",checked:false,dataset:{field:"show_label"},addEventListener:(event,fn)=>callbacks.label=fn};
+  const page={checked:true,dataset:{disablePage:"color"},addEventListener:(event,fn)=>callbacks.page=fn};
+  panel.render=()=>{};
+  panel.shadowRoot.querySelectorAll=selector=>selector==='[data-field]' ? [label] : selector==='[data-disable-page]' ? [page] : [];
+  panel.bind();callbacks.label();callbacks.page();
+  assert.equal(panel.draft.pages[0].show_label,false);
+  assert.deepEqual(panel.draft.pages[0].disabled_pages,["color"]);
+  page.checked=false;callbacks.page();assert.deepEqual(panel.draft.pages[0].disabled_pages,[]);
+});
+
+test("ESPHome panels expose local override status and explicit resume",()=> {
+  const panel=new Panel();panel.language="en";panel.tab="panels";
+  panel.data={profiles:{},applied:{p:{id:"p",name:"Home",revision:1}},panels:{one:{id:"one",name:"Panel",transport:"esphome",profile_id:"p",compatible_profiles:["p"],result:"local_override",error_detail:"<unsafe>"}},entities:[]};
+  panel.render();const html=panel.shadowRoot.innerHTML;
+  assert.match(html,/ESPHome Native API/);assert.match(html,/YAML profile selected/);
+  assert.match(html,/data-action="resume-profile"/);assert.match(html,/&lt;unsafe&gt;/);
+});

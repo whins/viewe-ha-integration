@@ -16,16 +16,21 @@ from homeassistant.helpers.storage import Store
 from homeassistant.const import EVENT_STATE_CHANGED
 
 from .const import DOMAIN, PROTOCOL_VERSION, STORAGE_VERSION
+from .native_hub import NativeHubMixin
+from .native import encode_profile
 from .models import new_profile, validate_profile, panel_compatible
 
 _LOGGER = logging.getLogger(__name__)
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-class VieweHub:
-    def __init__(self, hass, prefix):
+class VieweHub(NativeHubMixin):
+    def __init__(self, hass, prefix, mqtt_enabled=True):
         self.hass = hass
         self.prefix = prefix
+        self.mqtt_enabled = mqtt_enabled
+        self._native_init()
+        self.native_errors = {}
         self.store = Store(hass, STORAGE_VERSION, DOMAIN)
         self.data = {"profiles": {}, "applied": {}, "panels": {}}
         self.online = set()
@@ -46,17 +51,26 @@ class VieweHub:
                     profile.pop("requirements", None)
             await self.store.async_save(self.data)
         try:
-            for suffix in ("hello", "availability", "ack", "command"):
-                self.unsubscribers.append(await mqtt.async_subscribe(self.hass, f"{self.prefix}/panels/+/{suffix}", self._message, qos=1))
+            if self.mqtt_enabled:
+                for suffix in ("hello", "availability", "ack", "command"):
+                    self.unsubscribers.append(await mqtt.async_subscribe(self.hass, f"{self.prefix}/panels/+/{suffix}", self._message, qos=1))
+                self.unsubscribers.append(mqtt.async_subscribe_connection_status(self.hass, self._connection_changed))
+            self.unsubscribers.append(self.hass.bus.async_listen("esphome.viewe_panel", self._native_event))
             self.unsubscribers.append(self.hass.bus.async_listen(EVENT_STATE_CHANGED, self._state_changed))
             self.unsubscribers.append(async_track_time_interval(self.hass, self._refresh, timedelta(minutes=15)))
             self.unsubscribers.append(async_track_time_interval(self.hass, self._maintenance, timedelta(seconds=30)))
-            self.unsubscribers.append(mqtt.async_subscribe_connection_status(self.hass, self._connection_changed))
-            if mqtt.is_connected(self.hass):
+            await self._native_poll()
+            if self._mqtt_connected():
                 await self._request_hello()
         except Exception:
             self.async_stop()
             raise
+
+    def _mqtt_connected(self):
+        return self.mqtt_enabled and mqtt.is_connected(self.hass)
+
+    def _panel_online(self, panel_id):
+        return panel_id in self.online and (self.native_nodes.get(panel_id, {}).get("available", False) if self._is_native(panel_id) else self._mqtt_connected())
 
     @callback
     def async_stop(self):
@@ -68,8 +82,10 @@ class VieweHub:
 
     @callback
     def _connection_changed(self, connected):
-        self.online.clear()
-        self.last_seen.clear()
+        for panel_id in list(self.online):
+            if not self._is_native(panel_id):
+                self.online.discard(panel_id)
+                self.last_seen.pop(panel_id, None)
         if connected:
             self.hass.async_create_task(self._request_hello())
 
@@ -84,15 +100,19 @@ class VieweHub:
         for panel_id in list(self.online):
             if now - self.last_seen.get(panel_id, 0) > 90:
                 self.online.discard(panel_id)
+                self.native_pending.pop(panel_id, None)
                 self.results[panel_id] = "offline"
             elif self.results.get(panel_id) == "pending" and now - self.pending_since.get(panel_id, now) > 30:
                 self.results[panel_id] = "timeout"
+                self.native_pending.pop(panel_id, None)
+        await self._native_poll()
 
     def snapshot(self):
         result = deepcopy(self.data)
         for panel_id, panel in result["panels"].items():
-            panel["online"] = panel_id in self.online and mqtt.is_connected(self.hass)
+            panel["online"] = self._panel_online(panel_id)
             panel["result"] = self.results.get(panel_id, "offline") if panel["online"] else "offline"
+            panel["error_detail"] = self.native_errors.get(panel_id, "")
             panel["compatible_profiles"] = [profile_id for profile_id, profile in self.data["applied"].items() if self.compatible(panel, profile)]
         return result
 
@@ -117,6 +137,8 @@ class VieweHub:
             if profile.get("revision") != current["revision"]:
                 raise ValueError("Профіль змінено в іншому вікні. Оновіть редактор")
             profile["revision"] = current["revision"] + 1
+            if profile["revision"] > 2147483647:
+                raise ValueError("Profile revision limit reached")
             updated = deepcopy(self.data)
             updated["profiles"][profile["id"]] = profile
             await self._persist(updated)
@@ -155,6 +177,9 @@ class VieweHub:
             incompatible = [p["name"] for p in self.data["panels"].values() if p.get("profile_id") == profile_id and not self.compatible(p, profile)]
             if incompatible:
                 raise ValueError("Профіль несумісний із панелями: " + ", ".join(incompatible))
+            for panel_id, panel in self.data["panels"].items():
+                if panel.get("profile_id") == profile_id and self._is_native(panel_id):
+                    self._validate_native_targets(profile)
             updated = deepcopy(self.data)
             updated["applied"][profile_id] = profile
             await self._persist(updated)
@@ -175,21 +200,36 @@ class VieweHub:
                 raise ValueError("Виберіть панель і застосований профіль")
             if profile_id is not None and not self.compatible(self.data["panels"][panel_id], self.data["applied"][profile_id]):
                 raise ValueError("Профіль несумісний із панеллю")
+            if self._is_native(panel_id) and profile_id is not None:
+                self._validate_native_targets(self.data["applied"][profile_id])
             updated = deepcopy(self.data)
             updated["panels"][panel_id]["profile_id"] = profile_id
+            if self._is_native(panel_id):
+                updated["panels"][panel_id].update(resume_requested=profile_id is not None, reset_requested=profile_id is None)
+                self.native_pending.pop(panel_id, None)
             await self._persist(updated)
             return await self._deliver(panel_id)
+
+    def _validate_native_targets(self, profile):
+        encode_profile(profile)
+        for page in profile["pages"]:
+            if page["visible"] and page["template"] == "bc250" and self.hass.states.get(page.get("guard_script", "script.viewe_guarded_start")) is None:
+                raise ValueError("Install or select the BC-250 guard script first")
 
     async def _publish(self, panel_id, suffix, payload):
         await mqtt.async_publish(self.hass, f"{self.prefix}/panels/{panel_id}/{suffix}", json.dumps(payload, ensure_ascii=False, default=str), qos=1, retain=False)
 
     async def _catalog(self, panel_id):
+        if self._is_native(panel_id):
+            return
         panel = self.data["panels"][panel_id]
         profiles = [p for p in self.data["applied"].values() if self.compatible(panel, p)]
         await self._publish(panel_id, "profiles", {"protocol": PROTOCOL_VERSION, "profiles": profiles})
 
     async def _deliver(self, panel_id):
-        if panel_id not in self.online or not mqtt.is_connected(self.hass):
+        if self._is_native(panel_id):
+            return await self._native_deliver(panel_id)
+        if not self._panel_online(panel_id):
             self.results[panel_id] = "offline"
             return "offline"
         panel = self.data["panels"][panel_id]
@@ -228,6 +268,8 @@ class VieweHub:
             if not isinstance(payload, dict) or payload.get("protocol") != PROTOCOL_VERSION:
                 raise ValueError("Непідтримуваний протокол")
             async with self.lock:
+                if self._is_native(panel_id):
+                    return  # ESPHome identity/receipts cannot be supplied through MQTT.
                 if suffix == "hello":
                     name, capabilities = payload.get("name"), payload.get("capabilities")
                     if not isinstance(name, str) or not 1 <= len(name) <= 128 or not isinstance(capabilities, dict) or not isinstance(capabilities.get("templates"), dict):
@@ -331,6 +373,8 @@ class VieweHub:
         await self.hass.services.async_call("switch" if page["template"] == "switch" else "light", action, {**parameters, "entity_id": page["entity_id"]}, blocking=True)
 
     async def _data(self, panel_id):
+        if self._is_native(panel_id):
+            return  # States, commands and forecasts travel directly through Native API.
         panel = self.data["panels"][panel_id]
         profile = self.data["applied"].get(panel.get("profile_id"))
         if profile is None:
@@ -371,8 +415,8 @@ class VieweHub:
         await self._publish(panel_id, "data", {"protocol": PROTOCOL_VERSION, "profile_id": profile["id"], "revision": profile["revision"], "pages": pages})
 
     async def _refresh(self, _now=None):
-        if not mqtt.is_connected(self.hass):
-            self.online.clear()
+        if not self._mqtt_connected():
+            self._connection_changed(False)
             return
         for panel_id in list(self.online):
             if panel_id not in self.data["panels"]:

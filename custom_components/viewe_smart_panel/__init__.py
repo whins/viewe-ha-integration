@@ -11,7 +11,8 @@ from .websocket import async_register_commands
 
 
 async def async_setup_entry(hass, entry):
-    hub = VieweHub(hass, entry.data["topic_prefix"])
+    settings = {**entry.data, **entry.options}
+    hub = VieweHub(hass, settings.get("topic_prefix", "viewe"), settings.get("mqtt_enabled", True))
     await hub.async_start()
     hass.data[DOMAIN] = hub
     try:
@@ -28,7 +29,12 @@ async def async_setup_entry(hass, entry):
         hub.async_stop()
         hass.data.pop(DOMAIN, None)
         raise
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+async def _async_options_updated(hass, entry):
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass, entry):

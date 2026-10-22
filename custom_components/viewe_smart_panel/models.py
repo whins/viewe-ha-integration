@@ -5,7 +5,7 @@ from datetime import time
 from uuid import uuid4
 
 LIGHT_TYPES = {"MONO", "CCT", "RGB", "RGBW", "RGBCCT", "ADDRESS"}
-TEMPLATES = {"lighting", "weather", "switch", "actions", "bc250"}
+TEMPLATES = {"lighting", "weather", "switch", "actions", "bc250", "clock", "temperature_humidity", "thermostat"}
 
 
 def new_page(template, language="uk"):
@@ -23,6 +23,16 @@ def new_page(template, language="uk"):
         page.update(control_type="AUTO")
     elif template == "weather":
         page["umbrella"] = {"enabled": True, "probability": 40, "forecast_start": "08:00", "forecast_end": "18:00", "limit_time": True, "hide_after": "10:00"}
+    page.update(show_label=True, disabled_pages=[])
+    if template in {"clock", "temperature_humidity", "thermostat"}:
+        names = {"clock": ("Годинник", "Clock"), "temperature_humidity": ("Температура / вологість", "Temperature / humidity"), "thermostat": ("Термостат", "Thermostat")}
+        page["name"] = names[template][0 if language == "uk" else 1]
+    if template == "clock":
+        page["format"] = "24h"
+    elif template == "temperature_humidity":
+        page.update(temperature_entity_id="", humidity_entity_id="")
+    elif template == "thermostat":
+        page.update(variant="auto", temperature_unit="auto")
     return page
 
 
@@ -31,6 +41,18 @@ def new_profile(name, language="uk"):
 
 
 def panel_compatible(panel, profile):
+    if panel.get("transport") == "esphome":
+        from .native import encode_profile
+        try:
+            encode_profile(profile)
+            return True
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return False
+    # These options are only implemented by the ESPHome firmware.
+    if any(p["visible"] and (p.get("show_label", True) is not True or p.get("disabled_pages") or
+           (p.get("icon") and p["icon"] != ("bulb" if p["template"] == "lighting" else "power")) or
+           p.get("layout", "normal") != "normal") for p in profile["pages"]):
+        return False
     capabilities = panel.get("capabilities", {})
     templates = capabilities.get("templates", {})
     if not isinstance(templates, dict):
@@ -40,7 +62,7 @@ def panel_compatible(panel, profile):
 
 def supported_light_types(attributes):
     modes = set(attributes.get("supported_color_modes", []))
-    result = ["MONO"] if modes - {"onoff", "unknown"} else []
+    result = ["MONO"] if modes - {"unknown"} else []
     if modes & {"color_temp", "rgbww"}:
         result.append("CCT")
     if modes & {"hs", "xy", "rgb", "rgbw", "rgbww"}:
@@ -81,6 +103,8 @@ def validate_profile(value, *, apply=False, states=None):
     for field in ("id", "name"):
         if not isinstance(profile.get(field), str) or not profile[field].strip() or len(profile[field]) > 128:
             raise ValueError("Профіль повинен мати ID та назву до 128 символів")
+    if type(profile.get("revision")) is not int or not 0 <= profile["revision"] <= 2147483647:
+        raise ValueError("Invalid profile revision")
     pages = profile.get("pages")
     if not isinstance(pages, list) or len(pages) > 64:
         raise ValueError("Профіль може містити до 64 сторінок")
@@ -96,6 +120,30 @@ def validate_profile(value, *, apply=False, states=None):
             raise ValueError("Сторінка повинна мати назву до 128 символів")
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
+        if type(page.get("show_label", True)) is not bool:
+            raise ValueError("show_label must be boolean")
+        allowed_pages = {"lighting": {"cct", "color", "effects"}, "weather": {"forecast"}, "thermostat": {"modes", "fan", "presets", "swing", "range"}}.get(page["template"], set())
+        disabled = page.get("disabled_pages", [])
+        if not isinstance(disabled, list) or any(type(v) is not str or v not in allowed_pages for v in disabled) or len(set(disabled)) != len(disabled):
+            raise ValueError("Invalid disabled_pages")
+        if page["template"] in {"switch", "lighting"} and page.get("icon", "power") not in {"power", "bulb", "steam"}:
+            raise ValueError("Unknown icon")
+        if page.get("layout", "normal") not in {"normal", "fullscreen"}:
+            raise ValueError("Invalid layout")
+        if page["template"] == "clock":
+            if page.get("format", "24h") not in {"12h", "24h"}:
+                raise ValueError("Invalid clock format")
+            continue
+        if page["template"] == "temperature_humidity":
+            targets = [page.get(key) for key in ("temperature_entity_id", "humidity_entity_id") if page.get(key)]
+            if any(not isinstance(t, str) or not t.startswith("sensor.") or t == "sensor." for t in targets):
+                raise ValueError("Expected sensor.* entity_id")
+            if apply and page["visible"] and (not targets or states is None or any(t not in states for t in targets)):
+                raise ValueError("Choose at least one existing room sensor")
+            continue
+        if page["template"] == "thermostat":
+            if page.get("variant", "auto") not in {"auto", "heater", "air_conditioner"} or page.get("temperature_unit", "auto") not in {"auto", "°C", "°F"}:
+                raise ValueError("Invalid thermostat settings")
         if page["template"] == "bc250":
             for field, domain in (("entity_id", "binary_sensor"), ("power_entity_id", "button")):
                 target = page.get(field, "")
@@ -123,7 +171,7 @@ def validate_profile(value, *, apply=False, states=None):
                     item["name"] = label.strip() or states[target].get("friendly_name") or target
             continue
         entity = page.get("entity_id", "")
-        domain = "light" if page["template"] == "lighting" else "switch" if page["template"] == "switch" else "weather"
+        domain = "light" if page["template"] == "lighting" else "switch" if page["template"] == "switch" else "climate" if page["template"] == "thermostat" else "weather"
         if not isinstance(entity, str) or (entity and (not entity.startswith(domain + ".") or entity == domain + ".")):
             raise ValueError("Невідповідна сутність сторінки")
         if page["template"] == "lighting":
