@@ -19,7 +19,7 @@ export default {
   "savedNotice": "Profile saved. Panels continue using the previous applied version.",
   "discard": "Discard unsaved changes?",
   "loading": "Loading…",
-  "panelsHelp": "Panels appear through ESPHome Native API or MQTT. Apply a profile before assigning it.",
+  "panelsHelp": "Panels appear through ESPHome Native API or MQTT. Status refreshes automatically. Apply a profile before assigning it.",
   "noPanels": "No panels have connected yet.",
   "activeProfile": "Active profile",
   "chooseProfile": "Choose a profile",
@@ -120,5 +120,7 @@ export default {
   "24h": "24 hours",
   "12h": "12 hours",
   "demo": "Demo",
-  "demoHelp": "Sample data and local controls without HA entities or device commands. Requires ESPHome firmware with demo support."
+  "demoHelp": "Sample data and local controls without HA entities or device commands. Requires ESPHome firmware with demo support.",
+  "connectDisplay": "Connect your display",
+  "connectDisplayHelp": "First add the display in Settings → Devices & services → Add integration → ESPHome. Enter its IP address, port 6053 and API encryption key. Allow the device to perform Home Assistant actions in its options. The connected panel will appear here automatically. Legacy MQTT panels remain separate records."
 };

@@ -27,6 +27,14 @@
   bundled firmware schema fills missing demo bindings. Update display firmware
   before enabling Demo. Live HA/display verification and installation are pending.
 
+- 2026-11-05: Version 0.2.2 fixes stale editor modules with release-specific
+  static asset paths and custom element names, and shows the frontend version.
+  Panels polls every five seconds; disconnect cancels its timer and invalidates
+  late responses, while unsaved profile forms are preserved. Setup guidance is
+  shown when there are no VIEWE Native nodes. A user's missing display was not
+  added to HA's standard ESPHome integration: Wi-Fi alone is insufficient.
+  Preserve legacy MQTT records. Restart HA after updating Python code.
+
 ## Language and collaboration
 
 - Communicate with the user in Ukrainian.

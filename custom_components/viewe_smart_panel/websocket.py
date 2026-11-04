@@ -2,7 +2,7 @@
 
 from homeassistant.components import websocket_api
 
-from .const import DOMAIN
+from .const import DOMAIN, VERSION
 from .models import new_page, supported_light_types
 from .schema_compat import vol
 
@@ -28,6 +28,8 @@ async def editor_command(hass, connection, msg):
         if action == "get":
             await hub._native_poll()
             result = hub.snapshot()
+            result["backend_version"] = VERSION
+            result["native_setup_required"] = not bool(hub.native_nodes)
             result["entities"] = [
                 {"entity_id": s.entity_id, "name": s.attributes.get("friendly_name", s.entity_id),
                  "types": supported_light_types(s.attributes) if s.domain == "light" else []}

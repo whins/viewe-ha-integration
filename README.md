@@ -1,7 +1,7 @@
 # VIEWE Smart Panel for Home Assistant
 
 A custom Home Assistant integration for VIEWE smart panels, with shared profiles
-and a sidebar editor. Version **0.2.1** supports **ESPHome Native API** and
+and a sidebar editor. Version **0.2.2** supports **ESPHome Native API** and
 optional legacy **MQTT** transport. Widgets include Lighting, Weather, Switch,
 Actions, Clock, Temperature / humidity, Thermostat and the BC-250 switch preset.
 
@@ -34,7 +34,7 @@ Both files share one editor implementation and must be updated together.
 New page names follow the current language; existing names are preserved.
 The integration setup flow provides English strings and a Ukrainian translation.
 
-## ESPHome Native API (0.2.1)
+## ESPHome Native API (0.2.2)
 
 The new ESPHome firmware is supported alongside the legacy MQTT firmware.
 See [ESPHome setup and the widget forms](docs/esphome-native-api.md) before
@@ -43,6 +43,13 @@ Thermostat widgets, label visibility, internal-page selection and icon options.
 
 Each widget now has a **Demo** checkbox for local sample data and interactive
 controls without real HA entities. See the Native API guide for firmware requirements.
+
+The editor version is shown in its header. Version 0.2.2 uses versioned asset
+paths and custom element names, so an older browser module cannot replace the
+updated editor after HA restarts. Panels refreshes every five seconds without
+redrawing unsaved widget forms. Install the ESPHome device in HA first; Wi-Fi
+connectivity alone does not register a Native API panel. Stored MQTT panels
+remain independent records.
 
 ## Requirements
 

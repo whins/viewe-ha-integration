@@ -40,6 +40,12 @@ def check():
     require(manifest.get("codeowners") == ["@whins"], "Use the actual maintainer handle in codeowners.")
     require(bool(re.fullmatch(r"\d+\.\d+\.\d+", str(manifest.get("version", "")))), "Expected a numeric major.minor.patch version.")
 
+    version=manifest.get("version", "")
+    constants=(integration / "const.py").read_text(encoding="utf-8")
+    frontend=(integration / "frontend/panel.js").read_text(encoding="utf-8")
+    require(f'VERSION = "{version}"' in constants, "Backend asset version must match manifest.")
+    require(f'const UI_VERSION = "{version}";' in frontend, "Frontend asset version must match manifest.")
+
     hacs = json_values.get(ROOT / "hacs.json", {})
     require(hacs.get("name") == manifest.get("name"), "HACS and integration display names must match.")
     require(hacs.get("content_in_root") is False, "Runtime content belongs in custom_components, not the repository root.")

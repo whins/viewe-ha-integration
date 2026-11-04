@@ -1,6 +1,7 @@
 import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
+const UI_VERSION = "0.2.2";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -15,6 +16,7 @@ class ViewePanel extends HTMLElement {
     this.dirty = false;
     this.busy = false;
     this.notice = "";
+    this.statusGeneration = 0;
   }
   t(key) { return (this.language === "uk" ? uk : en)[key] || en[key] || key; }
   errorText(error) { const message=error.message || String(error); return this.language === "uk" ? message : englishError(message,this.t("requestFailed")); }
@@ -27,8 +29,34 @@ class ViewePanel extends HTMLElement {
     else if (changed && this.isConnected) this.render();
   }
   connectedCallback() {
+    this.startStatusRefresh();
     this.render();
     if (this._hass && !this.data) this.load();
+  }
+  disconnectedCallback() {
+    this.statusGeneration++;
+    if(this.statusTimer)clearInterval(this.statusTimer);
+    this.statusTimer=null;
+  }
+  startStatusRefresh() {
+    if(this.statusTimer || !this.isConnected)return;
+    this.statusTimer=setInterval(()=>this.refreshStatus(),5000);
+  }
+  async refreshStatus() {
+    if(!this.isConnected || !this._hass || this.loading || this.busy || this.refreshing)return;
+    this.refreshing=true;
+    const generation=this.statusGeneration;
+    try {
+      const data=await this.api("get");
+      if(!this.isConnected || generation!==this.statusGeneration || this.busy)return;
+      this.data=data;this.refreshError="";
+      if(this.tab==="panels" && this.shadowRoot.activeElement?.tagName!=="SELECT")this.render();
+    } catch(error) {
+      if(this.isConnected && generation===this.statusGeneration) {
+        this.refreshError=this.errorText(error);
+        if(this.tab==="panels" && this.shadowRoot.activeElement?.tagName!=="SELECT")this.render();
+      }
+    } finally {this.refreshing=false;}
   }
   async api(action, payload={}) {
     return this._hass.callWS({type:"viewe_smart_panel/editor", action, payload:{...payload, language:this.language || "en"}});
@@ -67,6 +95,8 @@ class ViewePanel extends HTMLElement {
     if (this.data) {
       if (this.tab === "panels") {
         content = `<h2>${this.t("panels")}</h2><p class="muted">${this.t("panelsHelp")}</p><p class="muted">${this.t("nativeHelp")}</p>`;
+        if(this.data.native_setup_required)content+=`<section><h3>${this.t("connectDisplay")}</h3><p>${this.t("connectDisplayHelp")}</p></section>`;
+        if(this.refreshError)content+=`<p class="notice" role="status">${e(this.refreshError)}</p>`;
         const panels = Object.values(this.data.panels);
         if (!panels.length) content += `<div class="empty">${this.t("noPanels")}</div>`;
         for (const panel of panels) {
@@ -94,7 +124,7 @@ class ViewePanel extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;color:var(--primary-text-color,#172635);background:var(--primary-background-color,#f5f7fa);min-height:100vh;font-family:var(--paper-font-body1_-_font-family,system-ui)}
       *{box-sizing:border-box}header{background:var(--card-background-color,#fff);padding:20px 28px;border-bottom:1px solid var(--divider-color,#ddd)}h1{font-size:22px;margin:0 0 16px}h2{font-size:24px}h3{margin:0 0 8px;font-size:17px}main{max-width:1050px;margin:auto;padding:24px}nav,.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:150px}section{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:14px;padding:20px;margin:16px 0}button,input,select{font:inherit;border:1px solid var(--divider-color,#ccc);border-radius:8px;padding:10px 14px;color:inherit;background:var(--card-background-color,#fff)}button{cursor:pointer}button.primary,nav button.selected{background:var(--primary-color,#087e8b);color:#fff;border-color:transparent}button:disabled{opacity:.5;cursor:default}label{display:block;margin:16px 0}label>input:not([type=checkbox]),label>select{display:block;width:100%;margin-top:8px}input[type=checkbox]{width:18px;height:18px;vertical-align:middle}label.check{margin:4px 0}.muted{color:var(--secondary-text-color,#667788);font-size:14px}.empty{padding:40px;text-align:center;border:1px dashed var(--divider-color,#ccc);border-radius:14px;margin-top:24px}.notice{padding:16px;background:var(--card-background-color,#fff);border-left:4px solid var(--primary-color,#087e8b);white-space:pre-line;border-radius:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}input:disabled{opacity:.5}@media(max-width:650px){main{padding:16px}.grid{grid-template-columns:1fr}.page{align-items:flex-start}header{padding:16px}}
-    </style><header><h1>VIEWE Smart Panel</h1><nav>${this.button("profiles",this.t("profiles"),"",this.tab==="profiles")}${this.button("panels",this.t("panels"),"",this.tab==="panels")}${this.button("refresh",this.t("refresh"))}</nav></header><main>${this.notice ? `<p class="notice" role="status">${e(this.notice)}</p>` : ""}${content}</main>`;
+    </style><header><h1>VIEWE Smart Panel <span class="muted">v${UI_VERSION}</span></h1><nav>${this.button("profiles",this.t("profiles"),"",this.tab==="profiles")}${this.button("panels",this.t("panels"),"",this.tab==="panels")}${this.button("refresh",this.t("refresh"))}</nav></header><main>${this.notice ? `<p class="notice" role="status">${e(this.notice)}</p>` : ""}${content}</main>`;
     if(this.busy) this.shadowRoot.querySelectorAll("input,select").forEach(el=>el.disabled=true);
     this.bind();
   }
@@ -248,4 +278,5 @@ class ViewePanel extends HTMLElement {
     });
   }
 }
-customElements.define("viewe-panel",ViewePanel);
+const elementName="viewe-panel-"+UI_VERSION.replaceAll(".","-");
+if(!customElements.get?.(elementName))customElements.define(elementName,ViewePanel);

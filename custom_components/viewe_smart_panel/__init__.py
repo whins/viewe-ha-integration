@@ -5,7 +5,7 @@ from pathlib import Path
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 
-from .const import DOMAIN, PANEL_URL, STATIC_URL, TITLE
+from .const import DOMAIN, PANEL_URL, STATIC_URL, TITLE, VERSION, PANEL_ELEMENT
 from .hub import VieweHub
 from .websocket import async_register_commands
 
@@ -16,12 +16,15 @@ async def async_setup_entry(hass, entry):
     await hub.async_start()
     hass.data[DOMAIN] = hub
     try:
-        if not hass.data.get(f"{DOMAIN}_registered"):
+        asset_key = f"{DOMAIN}_assets_{VERSION}"
+        if not hass.data.get(asset_key):
             await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "frontend"), False)])
+            hass.data[asset_key] = True
+        if not hass.data.get(f"{DOMAIN}_registered"):
             async_register_commands(hass)
             hass.data[f"{DOMAIN}_registered"] = True
         await panel_custom.async_register_panel(
-            hass, frontend_url_path=PANEL_URL, webcomponent_name="viewe-panel",
+            hass, frontend_url_path=PANEL_URL, webcomponent_name=PANEL_ELEMENT,
             sidebar_title=TITLE, sidebar_icon="mdi:tablet-dashboard",
             module_url=f"{STATIC_URL}/panel.js", require_admin=True,
         )

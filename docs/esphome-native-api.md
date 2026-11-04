@@ -97,7 +97,7 @@ receipt must also match the expected profile ID and revision. HA states, widget
 commands and forecast responses travel directly through ESPHome Native API;
 this integration only manages profile delivery for these panels.
 
-Connected nodes are probed every 30 seconds. The editor's refresh also probes
+Connected nodes are probed every 30 seconds. The editor refreshes every five seconds while open and also probes
 them. Delivery waits for `profile_applied` or a matching `profile_status`.
 Pending receipts expire on the maintenance tick after 30 seconds. Rejected
 profiles expose their firmware reason; a timeout/rejection does not repeatedly
@@ -149,3 +149,24 @@ entities. The clock begins at 08:30; weather includes an umbrella alert and
 three days of details. Toggle, light and climate controls update only the
 simulated display state. Profile-management actions and receipts still use HA's
 ESPHome connection. A small badge identifies demo widgets on the screen.
+
+
+## Editor updates and missing panels (0.2.2)
+
+After installing/reinstalling the integration, restart Home Assistant to load the
+new Python code. The editor header displays its frontend version. Every release
+uses a different static asset path and custom element name, including relative
+locale imports, so an older module already loaded in the browser cannot take
+its place. Refresh the HA browser page after restart if it is still showing the
+old panel. Backend and frontend version strings are checked during packaging.
+
+Panels refreshes every five seconds while this panel is mounted. Polling stops
+when it is removed and never redraws an unsaved widget form. A pending save or
+assignment takes precedence over an older background response.
+
+VIEWE does not independently discover Wi-Fi displays. First configure the display
+using HA's standard ESPHome integration, entering its reachable address, port
+6053 and Native API encryption key. Its four VIEWE actions must be registered.
+The Panels tab shows setup guidance when no VIEWE Native API nodes are detected,
+even if old MQTT panel records are still listed. These old records are retained;
+refreshing or reinstalling is not a migration from MQTT identity to ESPHome.

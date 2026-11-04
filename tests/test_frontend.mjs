@@ -4,11 +4,11 @@ import en from "../custom_components/viewe_smart_panel/frontend/locales/en.js";
 import uk from "../custom_components/viewe_smart_panel/frontend/locales/uk.js";
 import {englishError} from "../custom_components/viewe_smart_panel/frontend/locales/errors.js";
 
-let Panel;
+let Panel,registeredName;
 globalThis.HTMLElement=class {
   attachShadow() { this.shadowRoot={innerHTML:"",querySelector:()=>null,querySelectorAll:()=>[]}; }
 };
-globalThis.customElements={define:(_name,component)=>{Panel=component;}};
+globalThis.customElements={define:(name,component)=>{registeredName=name;Panel=component;}};
 globalThis.window={confirm:()=>true};
 await import("../custom_components/viewe_smart_panel/frontend/panel.js");
 
@@ -167,4 +167,70 @@ test("Demo checkbox handler persists a boolean and can be disabled",()=> {
  panel.shadowRoot.querySelectorAll=selector=>selector==='[data-field]'?[checkbox]:[];
  panel.bind();handler();assert.equal(panel.draft.pages[0].demo,true);
  checkbox.checked=false;handler();assert.equal(panel.draft.pages[0].demo,false);
+});
+
+
+test("Versioned component renders the installed editor version",()=> {
+ const panel=new Panel();panel.language="en";panel.render();
+ assert.match(panel.shadowRoot.innerHTML,/v0\.2\.2/);
+ assert.equal(registeredName,"viewe-panel-0-2-2");
+});
+
+test("Panels refresh displays new ESPHome data without manual interaction",async()=> {
+ const panel=new Panel();panel.language="en";panel.isConnected=true;panel._hass={};panel.tab="panels";
+ panel.data={panels:{legacy:{id:"legacy",name:"Old panel",result:"offline"}},profiles:{},applied:{},entities:[]};
+ const next={...panel.data,panels:{...panel.data.panels,new:{id:"new",name:"New ESPHome display",transport:"esphome",result:"applied"}}};
+ panel.api=async()=>next;
+ await panel.refreshStatus();
+ assert.match(panel.shadowRoot.innerHTML,/New ESPHome display/);
+ assert.match(panel.shadowRoot.innerHTML,/ESPHome Native API/);
+ assert.match(panel.shadowRoot.innerHTML,/Old panel/);
+});
+
+test("Background refresh preserves unsaved widget edits and does not redraw form",async()=> {
+ const panel=new Panel();panel.isConnected=true;panel._hass={};panel.tab="profiles";
+ const draft={id:"p",pages:[{id:"w",demo:true,name:"Unsaved name"}]};
+ panel.draft=draft;panel.pageId="w";panel.dirty=true;panel.data={old:true};
+ let renders=0;panel.render=()=>renders++;panel.api=async()=>({profiles:{},panels:{}});
+ await panel.refreshStatus();
+ assert.equal(panel.draft,draft);assert.equal(panel.dirty,true);assert.equal(panel.pageId,"w");assert.equal(renders,0);
+});
+
+test("Polling stops on disconnect and late responses cannot overwrite current data",async()=> {
+ const previousSet=globalThis.setInterval,previousClear=globalThis.clearInterval;
+ let callback,cleared,period;
+ try {
+  globalThis.setInterval=(fn,ms)=>{callback=fn;period=ms;return 42;};
+  globalThis.clearInterval=id=>cleared=id;
+  const panel=new Panel();panel.isConnected=true;panel._hass={};panel.data={current:true};
+  panel.startStatusRefresh();assert.equal(period,5000);assert.equal(typeof callback,"function");
+  let resolve;panel.api=()=>new Promise(done=>resolve=done);
+  const pending=panel.refreshStatus();panel.disconnectedCallback();panel.isConnected=false;
+  resolve({stale:true});await pending;
+  assert.equal(cleared,42);assert.deepEqual(panel.data,{current:true});assert.equal(panel.refreshing,false);
+ } finally {globalThis.setInterval=previousSet;globalThis.clearInterval=previousClear;}
+});
+
+test("Refresh does not overwrite the result of an ongoing save or assignment",async()=> {
+ const panel=new Panel();panel.isConnected=true;panel._hass={};panel.data={current:true};
+ let calls=0,resolve;panel.api=()=>{calls++;return new Promise(done=>resolve=done);};
+ panel.busy=true;await panel.refreshStatus();assert.equal(calls,0);
+ panel.busy=false;const pending=panel.refreshStatus();panel.busy=true;
+ resolve({stale:true});await pending;assert.deepEqual(panel.data,{current:true});
+});
+
+test("ESPHome setup guidance remains visible alongside stored MQTT panels",()=> {
+ const panel=new Panel();panel.language="uk";panel.tab="panels";
+ panel.data={native_setup_required:true,profiles:{},applied:{},entities:[],panels:{old:{id:"old",name:"Old panel",result:"offline"}}};
+ panel.render();const html=panel.shadowRoot.innerHTML;
+ assert.match(html,/ESPHome/);assert.match(html,/6053/);assert.match(html,/Old panel/);assert.match(html,/Додати інтеграцію/);
+});
+
+
+test("Panel polling does not interrupt an open profile selector",async()=> {
+ const panel=new Panel();panel.isConnected=true;panel._hass={};panel.tab="panels";
+ panel.shadowRoot.activeElement={tagName:"SELECT"};let renders=0;
+ panel.render=()=>renders++;panel.api=async()=>({panels:{new:{name:"New panel"}}});
+ await panel.refreshStatus();assert.equal(renders,0);assert.equal(panel.data.panels.new.name,"New panel");
+ panel.shadowRoot.activeElement=null;await panel.refreshStatus();assert.equal(renders,1);
 });
