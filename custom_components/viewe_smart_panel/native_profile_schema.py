@@ -8,7 +8,7 @@ TOKEN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 ENTITY = re.compile(r"^([a-z_]+)\.[a-z0-9_]+$")
 TYPES = {"switch", "light", "weather", "actions", "clock", "temperature_humidity", "thermostat"}
 PAGES = {"light": {"cct", "color", "effects"}, "weather": {"forecast"}, "thermostat": {"modes", "fan", "presets", "swing", "range"}}
-COMMON = {"id", "type", "label", "show_label", "disabled_pages"}
+COMMON = {"id", "type", "label", "show_label", "disabled_pages", "demo"}
 FIELDS = {
     "switch": {"entity_id", "state_entity_id", "control", "icon", "layout"},
     "light": {"entity_id", "icon"},
@@ -40,6 +40,35 @@ def seconds(value):
     raise ValueError("confirmation_timeout must be 1..120 seconds")
 
 
+def demo_bindings(widget):
+    """Fill absent demo bindings only; explicit invalid domains still fail."""
+    widget = dict(widget)
+    kind = widget["type"]
+    def fill(field, value):
+        if field not in widget or widget[field] == "":
+            widget[field] = value
+    if kind == "switch" and "control" in widget:
+        fill("state_entity_id", "binary_sensor.viewe_demo")
+        if isinstance(widget["control"], dict):
+            widget["control"] = dict(widget["control"])
+            if widget["control"].get("entity_id", "") == "":
+                widget["control"]["entity_id"] = "button.viewe_demo"
+    elif kind in {"switch", "light", "weather", "thermostat"}:
+        fill("entity_id", ("climate" if kind == "thermostat" else kind) + ".viewe_demo")
+    elif kind == "temperature_humidity":
+        if not widget.get("temperature_entity_id") and not widget.get("humidity_entity_id"):
+            fill("temperature_entity_id", "sensor.viewe_demo_temperature")
+            fill("humidity_entity_id", "sensor.viewe_demo_humidity")
+    elif kind == "actions":
+        targets = widget.get("targets", [{"entity_id": "script.viewe_demo"}])
+        if isinstance(targets, list):
+            widget["targets"] = [({**target, "entity_id": target.get("entity_id") or "script.viewe_demo"}
+                                  if isinstance(target, dict) and target.get("entity_id", "") == "" else target) for target in targets]
+            widget["targets"] = [({**target, "label": f"Дія {index+1}"} if isinstance(target, dict) and "label" not in target else target)
+                                 for index, target in enumerate(widget["targets"])]
+    return widget
+
+
 def validate_profile(value):
     if not isinstance(value, dict) or set(value) - {"schema_version", "id", "revision", "widgets"}:
         raise ValueError("Invalid profile fields")
@@ -64,7 +93,9 @@ def validate_profile(value):
         kind = item["type"]
         if set(item) - COMMON - FIELDS[kind]:
             raise ValueError("Invalid fields for " + kind)
-        widget = dict(item)
+        if type(item.get("demo", False)) is not bool:
+            raise ValueError("demo must be boolean")
+        widget = demo_bindings(item) if item.get("demo", False) else dict(item)
         wid = widget.get("id")
         if not isinstance(wid, str) or not TOKEN.fullmatch(wid) or wid in seen:
             raise ValueError("Invalid or duplicate widget id")

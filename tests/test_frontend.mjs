@@ -147,3 +147,24 @@ test("ESPHome panels expose local override status and explicit resume",()=> {
   assert.match(html,/ESPHome Native API/);assert.match(html,/YAML profile selected/);
   assert.match(html,/data-action="resume-profile"/);assert.match(html,/&lt;unsafe&gt;/);
 });
+
+
+test("Demo checkbox appears for all widgets and preserves entity selection",()=> {
+ const panel=new Panel();panel.language="uk";panel.data={entities:[]};
+ for(const template of ["switch","lighting","weather","bc250","clock","temperature_humidity","thermostat","actions"]) {
+  const page={id:"one",template,name:"Demo",demo:true,entity_id:"switch.room",control_type:"AUTO",actions:[{entity_id:"script.scene",name:"Scene"}],umbrella:{enabled:true,probability:40,limit_time:true,forecast_start:"08:00",forecast_end:"18:00",hide_after:"10:00"}};
+  const html=panel.pageForm(page);
+  assert.match(html,/data-field="demo" checked/);assert.match(html,/Демо/);
+  if(["switch","lighting","weather","thermostat"].includes(template))assert.match(html,/<select data-field="entity_id" disabled>/);
+  assert.equal(page.entity_id,"switch.room");
+ }
+});
+
+test("Demo checkbox handler persists a boolean and can be disabled",()=> {
+ const panel=new Panel();panel.draft={pages:[{id:"one",demo:false}]};panel.pageId="one";panel.render=()=>{};
+ let handler;
+ const checkbox={tagName:"INPUT",type:"checkbox",checked:true,dataset:{field:"demo"},addEventListener:(_,fn)=>handler=fn};
+ panel.shadowRoot.querySelectorAll=selector=>selector==='[data-field]'?[checkbox]:[];
+ panel.bind();handler();assert.equal(panel.draft.pages[0].demo,true);
+ checkbox.checked=false;handler();assert.equal(panel.draft.pages[0].demo,false);
+});

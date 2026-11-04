@@ -213,7 +213,7 @@ class VieweHub(NativeHubMixin):
     def _validate_native_targets(self, profile):
         encode_profile(profile)
         for page in profile["pages"]:
-            if page["visible"] and page["template"] == "bc250" and self.hass.states.get(page.get("guard_script", "script.viewe_guarded_start")) is None:
+            if page["visible"] and not page.get("demo", False) and page["template"] == "bc250" and self.hass.states.get(page.get("guard_script", "script.viewe_guarded_start")) is None:
                 raise ValueError("Install or select the BC-250 guard script first")
 
     async def _publish(self, panel_id, suffix, payload):
@@ -339,7 +339,7 @@ class VieweHub(NativeHubMixin):
         if not profile or payload.get("profile_id") != profile["id"] or payload.get("revision") != profile["revision"]:
             raise ValueError("Команда застарілого профілю")
         page = next((p for p in profile["pages"] if p["id"] == payload.get("page_id") and p["visible"] and p["template"] in {"lighting", "switch", "actions", "bc250"}), None)
-        if page is None:
+        if page is None or page.get("demo", False):
             raise ValueError("Сторінка не підтримує керування")
         if page["template"] == "bc250":
             running = self.hass.states.get(page["entity_id"])

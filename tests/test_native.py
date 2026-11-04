@@ -34,6 +34,32 @@ def ready_profile():
 
 
 class EncodingTests(unittest.TestCase):
+    def test_demo_all_templates_apply_without_live_entities(self):
+        profile=ready_profile()
+        for page in profile["pages"]:
+            page["demo"]=True
+            page["entity_id"]=""
+            if page["template"]=="bc250": page["power_entity_id"]=""
+            if page["template"]=="temperature_humidity": page.update(temperature_entity_id="",humidity_entity_id="")
+            if page["template"]=="actions": page["actions"]=[{"entity_id":"","name":"Scene"}]
+        applied=models.validate_profile(profile,apply=True,states={})
+        widgets=json.loads(native.encode_profile(applied))["widgets"]
+        self.assertTrue(all(w["demo"] for w in widgets))
+        self.assertEqual(widgets[0]["entity_id"],"light.viewe_demo")
+        self.assertEqual(widgets[-1]["control"]["entity_id"],"button.viewe_demo")
+        self.assertFalse(models.panel_compatible({"capabilities":{"templates":{p["template"]:1 for p in profile["pages"]}}},applied))
+
+    def test_demo_false_never_bypasses_live_validation_and_bad_flag_rejected(self):
+        profile=ready_profile()
+        for page in profile["pages"]: page["demo"]=False
+        with self.assertRaises(ValueError): models.validate_profile(profile,apply=True,states={})
+        profile["pages"][0]["demo"]="true"
+        with self.assertRaisesRegex(ValueError,"demo"): models.validate_profile(profile)
+
+    def test_normal_delivery_does_not_add_demo_field_to_old_firmware(self):
+        widgets=json.loads(native.encode_profile(ready_profile()))["widgets"]
+        self.assertTrue(all("demo" not in w for w in widgets))
+
     def test_onoff_light_can_use_automatic_type(self):
         self.assertEqual(models.resolve_light_type({"control_type": "AUTO"}, {"supported_color_modes": ["onoff"]}), "MONO")
 
@@ -139,6 +165,20 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class NativeDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_bc250_demo_does_not_require_guard_or_real_entities(self):
+        for page in self.hub.data["applied"]["home"]["pages"]: page["demo"]=True
+        self.hass.states.get=lambda _:None
+        await self.event()
+        self.assertEqual(self.hub.results["esp_one"],"pending")
+        self.assertTrue(all(w["demo"] for w in json.loads(self.hass.services.async_call.call_args.args[2]["payload"])["widgets"]))
+        self.assertEqual(self.hass.services.async_call.call_args.args[0],"esphome")
+
+    async def test_mqtt_demo_command_never_controls_real_entity(self):
+        page=self.hub.data["applied"]["home"]["pages"][1];page["demo"]=True
+        with self.assertRaises(ValueError):
+            await self.hub._command("esp_one",{"profile_id":"home","revision":1,"page_id":page["id"],"action":"toggle"})
+        self.hass.services.async_call.assert_not_awaited()
+
     async def asyncSetUp(self):
         self.hass = SimpleNamespace(states=SimpleNamespace(get=lambda _: SimpleNamespace(state="on"), async_all=lambda: []), services=SimpleNamespace(async_call=AsyncMock()))
         self.hub = hub_module.VieweHub(self.hass, "viewe", mqtt_enabled=False)

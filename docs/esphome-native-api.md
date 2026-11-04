@@ -128,3 +128,24 @@ using HA boundary fakes. Frontend tests cover all forms and option handlers.
 Packaging checks validate runtime asset placement and both languages. Loading
 this version in a real HA instance and controlling the physical display remain
 separate verification steps.
+
+
+## Per-widget Demo (0.2.1)
+
+Each widget form includes a **Demo** checkbox (disabled by default). Enable it,
+Save and Apply the profile, then assign it normally. Entity selections are
+retained for later use but are not required or consulted in demo mode. Turning
+Demo off restores entity validation and normal live control.
+
+Update the display firmware to the version supporting `demo` before enabling
+this option. Older ESPHome firmware rejects this new field; the editor keeps
+normal profiles compatible by omitting the field when it is disabled. Demo
+profiles are not compatible with legacy MQTT firmware.
+
+Demo widgets use per-widget local state and sample data; they do not execute
+HA actions or YAML widget triggers. The same profile can mix demo and live
+widgets. BC-250 demo does not require the guard script or real power/sensor
+entities. The clock begins at 08:30; weather includes an umbrella alert and
+three days of details. Toggle, light and climate controls update only the
+simulated display state. Profile-management actions and receipts still use HA's
+ESPHome connection. A small badge identifies demo widgets on the screen.

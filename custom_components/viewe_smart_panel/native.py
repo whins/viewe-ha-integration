@@ -20,6 +20,8 @@ def encode_profile(profile):
         widget = {"id": page["id"], "type": {"lighting": "light", "bc250": "switch"}.get(kind, kind),
                   "label": page["name"], "show_label": page.get("show_label", True),
                   "disabled_pages": page.get("disabled_pages", [])}
+        if page.get("demo", False):
+            widget["demo"] = True
         if kind == "bc250":
             widget.update(state_entity_id=page["entity_id"], icon="steam", layout="fullscreen",
                           control={"mode": "start_only", "action": "button.press", "entity_id": page["power_entity_id"],
@@ -46,7 +48,7 @@ def encode_profile(profile):
                 widget["umbrella"] = {key: alert[key] for key in ("enabled", "probability", "limit_time")}
                 widget["umbrella"].update(hours)
             elif kind == "lighting":
-                if page.get("control_type", "AUTO") != "AUTO":
+                if not page.get("demo", False) and page.get("control_type", "AUTO") != "AUTO":
                     raise ValueError("ESPHome: lighting control type must be AUTO")
                 widget["icon"] = page.get("icon", "bulb")
             elif kind == "switch":

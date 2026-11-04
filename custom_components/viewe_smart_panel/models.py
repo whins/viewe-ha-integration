@@ -23,7 +23,7 @@ def new_page(template, language="uk"):
         page.update(control_type="AUTO")
     elif template == "weather":
         page["umbrella"] = {"enabled": True, "probability": 40, "forecast_start": "08:00", "forecast_end": "18:00", "limit_time": True, "hide_after": "10:00"}
-    page.update(show_label=True, disabled_pages=[])
+    page.update(show_label=True, disabled_pages=[], demo=False)
     if template in {"clock", "temperature_humidity", "thermostat"}:
         names = {"clock": ("Годинник", "Clock"), "temperature_humidity": ("Температура / вологість", "Temperature / humidity"), "thermostat": ("Термостат", "Thermostat")}
         page["name"] = names[template][0 if language == "uk" else 1]
@@ -49,7 +49,7 @@ def panel_compatible(panel, profile):
         except (ValueError, KeyError, TypeError, AttributeError):
             return False
     # These options are only implemented by the ESPHome firmware.
-    if any(p["visible"] and (p.get("show_label", True) is not True or p.get("disabled_pages") or
+    if any(p["visible"] and (p.get("demo", False) or p.get("show_label", True) is not True or p.get("disabled_pages") or
            (p.get("icon") and p["icon"] != ("bulb" if p["template"] == "lighting" else "power")) or
            p.get("layout", "normal") != "normal") for p in profile["pages"]):
         return False
@@ -120,6 +120,9 @@ def validate_profile(value, *, apply=False, states=None):
             raise ValueError("Сторінка повинна мати назву до 128 символів")
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
+        if type(page.get("demo", False)) is not bool:
+            raise ValueError("demo must be boolean")
+        demo=page.get("demo", False)
         if type(page.get("show_label", True)) is not bool:
             raise ValueError("show_label must be boolean")
         allowed_pages = {"lighting": {"cct", "color", "effects"}, "weather": {"forecast"}, "thermostat": {"modes", "fan", "presets", "swing", "range"}}.get(page["template"], set())
@@ -138,7 +141,7 @@ def validate_profile(value, *, apply=False, states=None):
             targets = [page.get(key) for key in ("temperature_entity_id", "humidity_entity_id") if page.get(key)]
             if any(not isinstance(t, str) or not t.startswith("sensor.") or t == "sensor." for t in targets):
                 raise ValueError("Expected sensor.* entity_id")
-            if apply and page["visible"] and (not targets or states is None or any(t not in states for t in targets)):
+            if apply and page["visible"] and not demo and (not targets or states is None or any(t not in states for t in targets)):
                 raise ValueError("Choose at least one existing room sensor")
             continue
         if page["template"] == "thermostat":
@@ -149,7 +152,7 @@ def validate_profile(value, *, apply=False, states=None):
                 target = page.get(field, "")
                 if not isinstance(target, str) or (target and (not target.startswith(domain + ".") or target == domain + ".")):
                     raise ValueError("Невідповідна сутність сторінки")
-                if apply and page["visible"] and (not target or states is None or target not in states):
+                if apply and page["visible"] and not demo and (not target or states is None or target not in states):
                     raise ValueError(f"Виберіть наявну сутність для сторінки «{page['name']}»")
             continue
         if page["template"] == "actions":
@@ -165,7 +168,7 @@ def validate_profile(value, *, apply=False, states=None):
                     raise ValueError("Невідповідна сутність сторінки")
                 if not isinstance(label, str) or len(label) > 128:
                     raise ValueError("Сторінка повинна мати назву до 128 символів")
-                if apply and page["visible"]:
+                if apply and page["visible"] and not demo:
                     if not target or states is None or target not in states:
                         raise ValueError(f"Виберіть наявну сутність для сторінки «{page['name']}»")
                     item["name"] = label.strip() or states[target].get("friendly_name") or target
@@ -187,7 +190,7 @@ def validate_profile(value, *, apply=False, states=None):
             _clock(u.get("hide_after"))
             if start >= end:
                 raise ValueError("Кінець вікна прогнозу має бути після початку")
-        if apply and page["visible"]:
+        if apply and page["visible"] and not demo:
             if not entity or states is None or entity not in states:
                 raise ValueError(f"Виберіть наявну сутність для сторінки «{page['name']}»")
             if domain == "light":

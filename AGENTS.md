@@ -19,6 +19,14 @@
   are limited to 16 widgets/8192 UTF-8 bytes. HA runtime verification is pending;
   local boundary tests do not prove installation or hardware behavior.
 
+- 2026-11-05: Version 0.2.1 adds per-widget demo (strict boolean, default
+  false) to both editor languages and Native profile delivery. Visible demos
+  bypass live entity/guard existence checks but retain structural validation.
+  Normal profile payloads omit demo for older firmware compatibility; legacy
+  MQTT panels reject demo profiles and MQTT demo commands are blocked. The
+  bundled firmware schema fills missing demo bindings. Update display firmware
+  before enabling Demo. Live HA/display verification and installation are pending.
+
 ## Language and collaboration
 
 - Communicate with the user in Ukrainian.

@@ -72,7 +72,7 @@ class NativeHubMixin:
             try:
                 data["payload"] = encode_profile(profile)
                 for page in profile["pages"]:
-                    if page["visible"] and page["template"] == "bc250" and self.hass.states.get(page.get("guard_script", "script.viewe_guarded_start")) is None:
+                    if page["visible"] and not page.get("demo", False) and page["template"] == "bc250" and self.hass.states.get(page.get("guard_script", "script.viewe_guarded_start")) is None:
                         raise ValueError("Install or select the BC-250 guard script first")
             except (ValueError, KeyError, TypeError) as err:
                 self.results[panel_id] = "incompatible"

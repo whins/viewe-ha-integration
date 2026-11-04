@@ -118,5 +118,7 @@ export default {
   "nativeHelp": "Add the device using the standard ESPHome integration and allow it to perform HA actions. Connected panels appear automatically; refresh to see receipts.",
   "nativeLimits": "ESPHome: up to 16 visible widgets, 8 KB; automatic light type and whole umbrella hours. New widget types require ESPHome firmware.",
   "24h": "24 hours",
-  "12h": "12 hours"
+  "12h": "12 hours",
+  "demo": "Demo",
+  "demoHelp": "Sample data and local controls without HA entities or device commands. Requires ESPHome firmware with demo support."
 };

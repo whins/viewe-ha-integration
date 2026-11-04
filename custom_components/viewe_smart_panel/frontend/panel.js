@@ -85,7 +85,7 @@ class ViewePanel extends HTMLElement {
         else {
           content += `<h2>${this.t("profilePages")}</h2><label>${this.t("profileName")}<input data-profile-name value="${e(this.draft.name)}" maxlength="128"></label>`;
           this.draft.pages.forEach((p,index)=> {
-            content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${this.t(p.template)}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
+            content += `<section class="row page" draggable="${!this.busy}" data-index="${index}"><div class="grow"><h3>${e(p.name)}</h3><span class="muted">${this.t(p.template)}${p.demo ? " · "+this.t("demo") : ""}${p.entity_id ? " · "+e(p.entity_id) : " · "+this.t("chooseEntityHint")}</span></div><label class="check"><input type="checkbox" data-visible="${e(p.id)}" ${p.visible ? "checked" : ""}>${this.t("showPage")}</label>${this.button("up","↑",`data-id="${e(p.id)}" ${index===0 ? "disabled" : ""} aria-label="${this.t("up")}"`)}${this.button("down","↓",`data-id="${e(p.id)}" ${index===this.draft.pages.length-1 ? "disabled" : ""} aria-label="${this.t("down")}"`)}${this.button("edit",this.t("configure"),`data-id="${e(p.id)}"`)}${this.button("remove",this.t("delete"),`data-id="${e(p.id)}"`)}</section>`;
           });
           content += `<div class="row"><select id="template"><option value="weather">${this.t("weather")}</option><option value="lighting">${this.t("lighting")}</option><option value="switch">${this.t("switch")}</option><option value="bc250">${this.t("bc250")}</option><option value="actions">${this.t("actions")}</option>${["clock","temperature_humidity","thermostat"].map(t=>`<option value="${t}">${this.t(t)}</option>`).join("")}</select>${this.button("add",this.t("addPage"))}</div>`;
         }
@@ -101,13 +101,15 @@ class ViewePanel extends HTMLElement {
   pageForm(page) {
     const e=escapeHtml;
     const options=(field,label,values,fallback)=>`<label>${this.t(label)}<select data-field="${field}">${values.map(value=>`<option value="${e(value)}" ${(page[field] ?? fallback)===value ? "selected" : ""}>${e(this.t(value))}</option>`).join("")}</select></label>`;
-    let html=`<section><label class="check"><input type="checkbox" data-field="show_label" ${page.show_label!==false ? "checked" : ""}> ${this.t("showLabel")}</label>`;
+    let html=`<section><label class="check"><input type="checkbox" data-field="demo" ${page.demo ? "checked" : ""}> ${this.t("demo")}</label><p class="muted">${this.t("demoHelp")}</p><label class="check"><input type="checkbox" data-field="show_label" ${page.show_label!==false ? "checked" : ""}> ${this.t("showLabel")}</label>`;
     const pages={lighting:["cct","color","effects"],weather:["forecast"],thermostat:["modes","fan","presets","swing","range"]}[page.template] || [];
     if(pages.length)html+=`<p>${this.t("disabledPages")}</p>${pages.map(name=>`<label class="check"><input type="checkbox" data-disable-page="${name}" ${(page.disabled_pages || []).includes(name) ? "checked" : ""}> ${this.t(name)}</label>`).join("")}`;
     if(["switch","lighting"].includes(page.template))html+=options("icon","icon",["power","bulb","steam"],page.template==="lighting" ? "bulb" : "power");
     if(page.template==="switch")html+=options("layout","layout",["normal","fullscreen"],"normal");
     if(page.template==="bc250")html+=this.entityField(page,"guard_script","script","guardScript","script.viewe_guarded_start")+`<p class="muted">${this.t("guardHelp")}</p>`;
-    return html+"</section>"+this.widgetForm(page);
+    let form=this.widgetForm(page);
+    if(page.demo)form=form.replace(/(<select data-field="(?:entity_id|power_entity_id|temperature_entity_id|humidity_entity_id)"[^>]*)(>)/g,"$1 disabled$2").replace(/(<select data-run-index="[^"]+"[^>]*)(>)/g,"$1 disabled$2");
+    return html+"</section>"+form;
   }
   entityField(page,field,domain,label,fallback="") {
     const e=escapeHtml,value=page[field] ?? fallback;
