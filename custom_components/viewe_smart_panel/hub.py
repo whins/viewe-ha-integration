@@ -34,6 +34,7 @@ class VieweHub(NativeHubMixin):
         self.store = Store(hass, STORAGE_VERSION, DOMAIN)
         self.data = {"profiles": {}, "applied": {}, "panels": {}}
         self.online = set()
+        self.dismissed_panels = set()
         self.results = {}
         self.last_seen = {}
         self.pending_since = {}
@@ -119,6 +120,31 @@ class VieweHub(NativeHubMixin):
     async def _persist(self, updated):
         await self.store.async_save(updated)
         self.data = updated
+
+    async def async_delete_panel(self, panel_id):
+        """Forget only the VIEWE record; leave the HA device and panel untouched."""
+        async with self.lock:
+            if panel_id not in self.data["panels"]:
+                raise ValueError("Panel not found")
+            updated = deepcopy(self.data)
+            del updated["panels"][panel_id]
+            await self._persist(updated)
+            self.dismissed_panels.add(panel_id)
+            self.online.discard(panel_id)
+            for mapping in (self.results, self.last_seen, self.pending_since, self.native_nodes, self.native_pending, self.native_errors):
+                mapping.pop(panel_id, None)
+            for key in list(self.command_ids):
+                if key[0] == panel_id:
+                    self.command_ids.pop(key, None)
+            return {"deleted": panel_id}
+
+    async def async_refresh_panels(self):
+        """Explicit Refresh permits rediscovery of records dismissed this session."""
+        async with self.lock:
+            self.dismissed_panels.clear()
+        await self._native_poll()
+        if self._mqtt_connected():
+            await self._request_hello()
 
     async def async_create_profile(self, name, language="uk"):
         async with self.lock:
@@ -268,7 +294,7 @@ class VieweHub(NativeHubMixin):
             if not isinstance(payload, dict) or payload.get("protocol") != PROTOCOL_VERSION:
                 raise ValueError("Непідтримуваний протокол")
             async with self.lock:
-                if self._is_native(panel_id):
+                if panel_id in self.dismissed_panels or self._is_native(panel_id):
                     return  # ESPHome identity/receipts cannot be supplied through MQTT.
                 if suffix == "hello":
                     name, capabilities = payload.get("name"), payload.get("capabilities")

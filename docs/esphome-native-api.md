@@ -170,3 +170,19 @@ using HA's standard ESPHome integration, entering its reachable address, port
 The Panels tab shows setup guidance when no VIEWE Native API nodes are detected,
 even if old MQTT panel records are still listed. These old records are retained;
 refreshing or reinstalling is not a migration from MQTT identity to ESPHome.
+
+
+## Removing panel records and connection badges (0.2.3)
+
+Each panel card has a green Online or red Offline pill with an icon and text.
+Connection status is separate from profile delivery: an online panel can still
+show an application error or pending acknowledgement.
+
+**Remove panel** removes only that VIEWE panel record and its assignment. It
+keeps profiles, the standard ESPHome device and the current display configuration.
+A confirmation explains the scope. The removed identity is suppressed for the
+current HA session: background polling and late receipts cannot recreate it.
+**Refresh status** explicitly clears suppression, probes configured ESPHome
+nodes and requests fresh announcements from live MQTT panels. Rediscovered
+records start unassigned. Restarting the VIEWE integration also clears this
+session-only suppression. This is removal from the list, not an HA device ban.

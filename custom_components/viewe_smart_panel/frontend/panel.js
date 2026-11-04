@@ -1,7 +1,7 @@
 import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
-const UI_VERSION = "0.2.2";
+const UI_VERSION = "0.2.3";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -88,6 +88,12 @@ class ViewePanel extends HTMLElement {
   button(action, label, extra="", primary=false) {
     return `<button data-action="${action}" ${extra} class="${primary ? "primary" : ""}" ${this.busy ? "disabled" : ""}>${label}</button>`;
   }
+  panelBadge(panel) {
+    const online=panel.online===true;
+    const label=this.t(online?"online":"offline");
+    const mark=online?'<path d="m8 9 2 2 4-4"/>':'<path d="m3 2 14 14"/>';
+    return `<span class="connection-badge ${online ? "online" : "offline"}" role="status" aria-label="${label}"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="11" rx="1.5"/><path d="M10 14v3m-4 0h8"/>${mark}</svg>${label}</span>`;
+  }
   render() {
     const e = escapeHtml;
     const page = this.draft?.pages.find(p=>p.id === this.pageId);
@@ -101,7 +107,7 @@ class ViewePanel extends HTMLElement {
         if (!panels.length) content += `<div class="empty">${this.t("noPanels")}</div>`;
         for (const panel of panels) {
           const options = Object.values(this.data.applied).filter(p=>panel.compatible_profiles?.includes(p.id));
-          content += `<section><h3>${e(panel.name)}</h3><p class="muted">${e(panel.transport === "esphome" ? "ESPHome Native API" : "MQTT")} · ${e(panel.id)} · ${e(this.t(panel.result))}${panel.error_detail ? " · "+e(panel.error_detail) : ""}</p><label>${this.t("activeProfile")}<select data-panel="${e(panel.id)}" ${this.busy ? "disabled" : ""}><option value="">${this.t("unassigned")}</option>${panel.profile_id && !options.some(p=>p.id===panel.profile_id) ? `<option selected disabled value="${e(panel.profile_id)}">${e(this.data.applied[panel.profile_id]?.name || panel.profile_id)} (${this.t("incompatible")})</option>` : ""}${options.map(p=>`<option value="${e(p.id)}" ${panel.profile_id === p.id ? "selected" : ""}>${e(p.name)} · v${p.revision}</option>`).join("")}</select></label>${panel.transport === "esphome" && panel.profile_id ? this.button("resume-profile",this.t("resumeProfile"),`data-id="${e(panel.id)}"`) : ""}</section>`;
+          content += `<section><div class="panel-heading"><h3>${e(panel.name)}</h3>${this.panelBadge(panel)}</div><p class="muted">${e(panel.transport === "esphome" ? "ESPHome Native API" : "MQTT")} · ${e(panel.id)} · ${e(this.t(panel.result))}${panel.error_detail ? " · "+e(panel.error_detail) : ""}</p><label>${this.t("activeProfile")}<select data-panel="${e(panel.id)}" ${this.busy ? "disabled" : ""}><option value="">${this.t("unassigned")}</option>${panel.profile_id && !options.some(p=>p.id===panel.profile_id) ? `<option selected disabled value="${e(panel.profile_id)}">${e(this.data.applied[panel.profile_id]?.name || panel.profile_id)} (${this.t("incompatible")})</option>` : ""}${options.map(p=>`<option value="${e(p.id)}" ${panel.profile_id === p.id ? "selected" : ""}>${e(p.name)} · v${p.revision}</option>`).join("")}</select></label>${panel.transport === "esphome" && panel.profile_id ? this.button("resume-profile",this.t("resumeProfile"),`data-id="${e(panel.id)}"`) : ""} ${this.button("delete-panel",this.t("deletePanel"),`data-id="${e(panel.id)}"`)}</section>`;
           content += `<p class="muted">${this.t("encoder")}: ${this.t(panel.capabilities?.inputs?.encoder === true ? "inputYes" : "inputUnknown")} · ${this.t("touch")}: ${this.t(panel.capabilities?.inputs?.touch === true ? "inputYes" : "inputUnknown")}</p>`;
         }
       } else if (!this.draft) {
@@ -124,6 +130,7 @@ class ViewePanel extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;color:var(--primary-text-color,#172635);background:var(--primary-background-color,#f5f7fa);min-height:100vh;font-family:var(--paper-font-body1_-_font-family,system-ui)}
       *{box-sizing:border-box}header{background:var(--card-background-color,#fff);padding:20px 28px;border-bottom:1px solid var(--divider-color,#ddd)}h1{font-size:22px;margin:0 0 16px}h2{font-size:24px}h3{margin:0 0 8px;font-size:17px}main{max-width:1050px;margin:auto;padding:24px}nav,.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:150px}section{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:14px;padding:20px;margin:16px 0}button,input,select{font:inherit;border:1px solid var(--divider-color,#ccc);border-radius:8px;padding:10px 14px;color:inherit;background:var(--card-background-color,#fff)}button{cursor:pointer}button.primary,nav button.selected{background:var(--primary-color,#087e8b);color:#fff;border-color:transparent}button:disabled{opacity:.5;cursor:default}label{display:block;margin:16px 0}label>input:not([type=checkbox]),label>select{display:block;width:100%;margin-top:8px}input[type=checkbox]{width:18px;height:18px;vertical-align:middle}label.check{margin:4px 0}.muted{color:var(--secondary-text-color,#667788);font-size:14px}.empty{padding:40px;text-align:center;border:1px dashed var(--divider-color,#ccc);border-radius:14px;margin-top:24px}.notice{padding:16px;background:var(--card-background-color,#fff);border-left:4px solid var(--primary-color,#087e8b);white-space:pre-line;border-radius:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}input:disabled{opacity:.5}@media(max-width:650px){main{padding:16px}.grid{grid-template-columns:1fr}.page{align-items:flex-start}header{padding:16px}}
+      .panel-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.panel-heading h3{margin:0;overflow-wrap:anywhere}.connection-badge{display:inline-flex;flex-shrink:0;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}.connection-badge.online{color:#38d079;background:#163c29}.connection-badge.offline{color:#ff7869;background:#4a2420}.connection-badge svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
     </style><header><h1>VIEWE Smart Panel <span class="muted">v${UI_VERSION}</span></h1><nav>${this.button("profiles",this.t("profiles"),"",this.tab==="profiles")}${this.button("panels",this.t("panels"),"",this.tab==="panels")}${this.button("refresh",this.t("refresh"))}</nav></header><main>${this.notice ? `<p class="notice" role="status">${e(this.notice)}</p>` : ""}${content}</main>`;
     if(this.busy) this.shadowRoot.querySelectorAll("input,select").forEach(el=>el.disabled=true);
     this.bind();
@@ -242,6 +249,13 @@ class ViewePanel extends HTMLElement {
     if(indicator)indicator.textContent=this.t("unsaved");
   }
   action(action,id) {
+    if(action==="delete-panel") {
+      if(!window.confirm(this.t("deletePanelConfirm")))return;
+      return this.perform(async()=> {
+        await this.api("delete_panel",{panel_id:id});
+        this.data=await this.api("get");this.notice=this.t("panelDeleted");
+      });
+    }
     if(action==="resume-profile")return this.perform(async()=> {
       const result=await this.api("assign",{panel_id:id,profile_id:this.data.panels[id].profile_id});
       this.data=await this.api("get");this.notice=this.t(result);
@@ -274,7 +288,7 @@ class ViewePanel extends HTMLElement {
         this.notice=panels.length ? panels.map(([panel,status])=>`${this.data.panels[panel]?.name || panel}: ${this.t(status)}`).join("\n") : this.t("applyNoPanels");
       }
       if (action==="add") {const page=await this.api("page",{template});this.draft.pages.push(page);this.pageId=page.id;this.dirty=true;}
-      if (action==="refresh") {this.data=await this.api("get");this.notice=this.t("refreshed");}
+      if (action==="refresh") {this.data=await this.api("refresh");this.notice=this.t("refreshed");}
     });
   }
 }

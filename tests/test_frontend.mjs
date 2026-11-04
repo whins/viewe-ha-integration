@@ -1,4 +1,6 @@
 import test from "node:test";
+import {readFileSync} from "node:fs";
+const packageVersion=JSON.parse(readFileSync(new URL("../custom_components/viewe_smart_panel/manifest.json",import.meta.url),"utf8")).version;
 import assert from "node:assert/strict";
 import en from "../custom_components/viewe_smart_panel/frontend/locales/en.js";
 import uk from "../custom_components/viewe_smart_panel/frontend/locales/uk.js";
@@ -172,8 +174,8 @@ test("Demo checkbox handler persists a boolean and can be disabled",()=> {
 
 test("Versioned component renders the installed editor version",()=> {
  const panel=new Panel();panel.language="en";panel.render();
- assert.match(panel.shadowRoot.innerHTML,/v0\.2\.2/);
- assert.equal(registeredName,"viewe-panel-0-2-2");
+ assert.ok(panel.shadowRoot.innerHTML.includes(`v${packageVersion}`));
+ assert.equal(registeredName,"viewe-panel-"+packageVersion.replaceAll(".","-"));
 });
 
 test("Panels refresh displays new ESPHome data without manual interaction",async()=> {
@@ -233,4 +235,30 @@ test("Panel polling does not interrupt an open profile selector",async()=> {
  panel.render=()=>renders++;panel.api=async()=>({panels:{new:{name:"New panel"}}});
  await panel.refreshStatus();assert.equal(renders,0);assert.equal(panel.data.panels.new.name,"New panel");
  panel.shadowRoot.activeElement=null;await panel.refreshStatus();assert.equal(renders,1);
+});
+
+
+test("Online badges follow connection state independently of delivery result",()=> {
+ const panel=new Panel();panel.language="en";
+ assert.match(panel.panelBadge({online:true,result:"error"}),/connection-badge online/);
+ assert.match(panel.panelBadge({online:true}),/>Online</);
+ assert.match(panel.panelBadge({online:false,result:"applied"}),/connection-badge offline/);
+ assert.match(panel.panelBadge({online:false}),/>Offline</);
+});
+
+test("Panel cards include removal with explicit confirmation",async()=> {
+ const panel=new Panel();panel.language="en";panel.tab="panels";
+ panel.data={panels:{one:{id:"one",name:"Room",online:true,result:"applied"}},profiles:{},applied:{},entities:[]};
+ panel.render();assert.match(panel.shadowRoot.innerHTML,/data-action="delete-panel"/);
+ const calls=[];panel.api=async(action,payload)=>{calls.push([action,payload]);return action==="get" ? {panels:{},profiles:{},applied:{},entities:[]} : {deleted:"one"};};
+ await panel.action("delete-panel","one");
+ assert.deepEqual(calls[0],["delete_panel",{panel_id:"one"}]);assert.equal(calls[1][0],"get");
+});
+
+test("Cancelling removal keeps the panel and explicit Refresh requests rediscovery",async()=> {
+ const panel=new Panel();panel.language="en";panel.data={panels:{},profiles:{},applied:{},entities:[]};
+ let calls=[];panel.api=async(action)=>{calls.push(action);return panel.data;};
+ const confirm=window.confirm;
+ try {window.confirm=()=>false;await panel.action("delete-panel","one");assert.deepEqual(calls,[]);} finally {window.confirm=confirm;}
+ await panel.action("refresh");assert.deepEqual(calls,["refresh"]);
 });

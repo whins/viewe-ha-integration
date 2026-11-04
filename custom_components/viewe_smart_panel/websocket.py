@@ -14,7 +14,7 @@ def async_register_commands(hass):
 @websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): f"{DOMAIN}/editor",
-    vol.Required("action"): vol.In(["get", "create", "save", "apply", "assign", "page", "delete"]),
+    vol.Required("action"): vol.In(["get", "create", "save", "apply", "assign", "page", "delete", "delete_panel", "refresh"]),
     vol.Optional("payload", default={}): dict,
 })
 @websocket_api.async_response
@@ -25,11 +25,14 @@ async def editor_command(hass, connection, msg):
         return
     try:
         action, payload = msg["action"], msg["payload"]
-        if action == "get":
-            await hub._native_poll()
+        if action in {"get", "refresh"}:
+            if action == "refresh":
+                await hub.async_refresh_panels()
+            else:
+                await hub._native_poll()
             result = hub.snapshot()
             result["backend_version"] = VERSION
-            result["native_setup_required"] = not bool(hub.native_nodes)
+            result["native_setup_required"] = not hub.native_detected
             result["entities"] = [
                 {"entity_id": s.entity_id, "name": s.attributes.get("friendly_name", s.entity_id),
                  "types": supported_light_types(s.attributes) if s.domain == "light" else []}
@@ -43,6 +46,8 @@ async def editor_command(hass, connection, msg):
             result = await hub.async_apply_profile(payload["profile_id"])
         elif action == "assign":
             result = await hub.async_assign(payload["panel_id"], payload["profile_id"])
+        elif action == "delete_panel":
+            result = await hub.async_delete_panel(payload["panel_id"])
         elif action == "delete":
             result = await hub.async_delete_profile(payload["profile_id"], payload["revision"])
         else:

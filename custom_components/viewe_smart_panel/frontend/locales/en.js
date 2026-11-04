@@ -122,5 +122,9 @@ export default {
   "demo": "Demo",
   "demoHelp": "Sample data and local controls without HA entities or device commands. Requires ESPHome firmware with demo support.",
   "connectDisplay": "Connect your display",
-  "connectDisplayHelp": "First add the display in Settings → Devices & services → Add integration → ESPHome. Enter its IP address, port 6053 and API encryption key. Allow the device to perform Home Assistant actions in its options. The connected panel will appear here automatically. Legacy MQTT panels remain separate records."
+  "connectDisplayHelp": "First add the display in Settings → Devices & services → Add integration → ESPHome. Enter its IP address, port 6053 and API encryption key. Allow the device to perform Home Assistant actions in its options. The connected panel will appear here automatically. Legacy MQTT panels remain separate records.",
+  "online": "Online",
+  "deletePanel": "Remove panel",
+  "deletePanelConfirm": "Remove this panel from VIEWE? The HA device, profiles and display configuration are kept. Use Refresh status to rediscover connected panels.",
+  "panelDeleted": "Panel removed. Use Refresh status to discover it again."
 };

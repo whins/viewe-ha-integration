@@ -1,7 +1,7 @@
 # VIEWE Smart Panel for Home Assistant
 
 A custom Home Assistant integration for VIEWE smart panels, with shared profiles
-and a sidebar editor. Version **0.2.2** supports **ESPHome Native API** and
+and a sidebar editor. Version **0.2.3** supports **ESPHome Native API** and
 optional legacy **MQTT** transport. Widgets include Lighting, Weather, Switch,
 Actions, Clock, Temperature / humidity, Thermostat and the BC-250 switch preset.
 
@@ -34,7 +34,7 @@ Both files share one editor implementation and must be updated together.
 New page names follow the current language; existing names are preserved.
 The integration setup flow provides English strings and a Ukrainian translation.
 
-## ESPHome Native API (0.2.2)
+## ESPHome Native API (0.2.3)
 
 The new ESPHome firmware is supported alongside the legacy MQTT firmware.
 See [ESPHome setup and the widget forms](docs/esphome-native-api.md) before
@@ -50,6 +50,11 @@ updated editor after HA restarts. Panels refreshes every five seconds without
 redrawing unsaved widget forms. Install the ESPHome device in HA first; Wi-Fi
 connectivity alone does not register a Native API panel. Stored MQTT panels
 remain independent records.
+
+Panel cards show a green Online or red Offline badge independently of profile
+delivery status. **Remove panel** forgets the VIEWE record without deleting its
+HA device or profiles. Explicit **Refresh status** allows connected panels to
+be discovered again; background polling does not immediately undo removal.
 
 ## Requirements
 
@@ -160,7 +165,7 @@ required only when verifying legacy transport.
 - Screensaver and hardware settings remain in ESPHome YAML.
 - BC-250 requires a guard script installed separately in HA; its existence is
   checked, but custom script behavior cannot be inferred by this integration.
-- Diagnostic entities, panel deletion, export/import and display-shape adaptation
+- Diagnostic entities, export/import and display-shape adaptation
   are not implemented. Editor status updates use **Refresh status**.
 - Legacy MQTT's bounded command cache is not a persistent replay journal.
   Configure broker topic ACLs for legacy devices; panel IDs are not credentials.

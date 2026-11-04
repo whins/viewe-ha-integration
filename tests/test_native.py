@@ -165,6 +165,28 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class NativeDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_native_panel_waits_for_explicit_refresh_to_rediscover(self):
+        self.hass.config_entries=SimpleNamespace()
+        await self.event()
+        await self.hub.async_delete_panel("esp_one")
+        self.hass.services.async_call.reset_mock()
+        with patch.object(transport,"discover",return_value={"esp_one":self.node}):
+            await self.hub._native_poll()
+            self.assertNotIn("esp_one",self.hub.data["panels"])
+            self.assertTrue(self.hub.native_detected)
+            self.hass.services.async_call.assert_not_awaited()
+            await self.hub.async_refresh_panels()
+        self.assertIn("esp_one",self.hub.data["panels"])
+        self.assertIsNone(self.hub.data["panels"]["esp_one"]["profile_id"])
+        self.assertTrue(self.hass.services.async_call.call_args.args[1].endswith("viewe_profile_status"))
+
+    async def test_late_native_receipt_cannot_restore_a_deleted_panel(self):
+        await self.event()
+        await self.hub.async_delete_panel("esp_one")
+        await self.event("profile_applied","home","1")
+        self.assertNotIn("esp_one",self.hub.data["panels"])
+        self.assertNotIn("esp_one",self.hub.online)
+
     async def test_bc250_demo_does_not_require_guard_or_real_entities(self):
         for page in self.hub.data["applied"]["home"]["pages"]: page["demo"]=True
         self.hass.states.get=lambda _:None

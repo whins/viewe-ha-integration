@@ -13,6 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 class NativeHubMixin:
     def _native_init(self):
         self.native_nodes = {}
+        self.native_detected = False
         self.native_pending = {}
 
     def _is_native(self, panel_id):
@@ -29,8 +30,10 @@ class NativeHubMixin:
         if not hasattr(self.hass, "config_entries"):
             return
         nodes = discover(self.hass)
-        self.native_nodes = nodes
         async with self.lock:
+            self.native_detected = bool(nodes)
+            nodes = {key: node for key, node in nodes.items() if key not in self.dismissed_panels}
+            self.native_nodes = nodes
             updated = deepcopy(self.data)
             for panel_id, node in nodes.items():
                 panel = updated["panels"].setdefault(panel_id, {"id": panel_id, "profile_id": None})
@@ -47,6 +50,8 @@ class NativeHubMixin:
                 try:
                     await self._native_call(panel_id, "viewe_profile_status")
                 except Exception:
+                    if panel_id not in self.data["panels"]:
+                        continue
                     self.online.discard(panel_id)
                     self.results[panel_id] = "offline"
                     _LOGGER.debug("ESPHome status probe failed for %s", panel_id, exc_info=True)

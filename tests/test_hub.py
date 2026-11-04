@@ -46,6 +46,30 @@ hub_module = importlib.import_module("viewe_test_package.hub")
 
 
 class HubTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_panel_keeps_profiles_and_ignores_background_mqtt_until_refresh(self):
+        await self.hub.async_apply_profile(self.profile["id"])
+        mqtt.async_publish.reset_mock()
+        profiles=deepcopy(self.hub.data["profiles"])
+        await self.hub.async_delete_panel("panel1")
+        self.assertNotIn("panel1",self.hub.store.saved["panels"])
+        self.assertEqual(self.hub.data["profiles"],profiles)
+        self.assertIn(self.profile["id"],self.hub.data["applied"])
+        mqtt.async_publish.assert_not_called()
+        await self.message("hello",{"name":"Room","capabilities":{"templates":{"lighting":1,"weather":1}}})
+        await self.message("availability",{"state":"online"})
+        self.assertNotIn("panel1",self.hub.data["panels"])
+        await self.hub.async_refresh_panels()
+        self.assertTrue(mqtt.async_publish.call_args.args[1].endswith("/request"))
+        await self.message("hello",{"name":"Room","capabilities":{"templates":{"lighting":1,"weather":1}}})
+        self.assertIn("panel1",self.hub.data["panels"])
+
+    async def test_delete_panel_failed_persistence_preserves_record(self):
+        before=deepcopy(self.hub.data)
+        self.hub.store.async_save=AsyncMock(side_effect=OSError("Disk full"))
+        with self.assertRaises(OSError):await self.hub.async_delete_panel("panel1")
+        self.assertEqual(self.hub.data,before)
+        self.assertNotIn("panel1",self.hub.dismissed_panels)
+
     async def asyncSetUp(self):
         mqtt.async_publish.reset_mock()
         self.hass = SimpleNamespace(

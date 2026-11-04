@@ -35,6 +35,15 @@
   added to HA's standard ESPHome integration: Wi-Fi alone is insufficient.
   Preserve legacy MQTT records. Restart HA after updating Python code.
 
+- 2026-11-05: Version 0.2.3 adds panel removal and Online/Offline badges.
+  Removal persists before clearing transient state, leaves HA devices/profiles
+  untouched, and suppresses rediscovery for this HA session. Explicit Refresh
+  clears suppression, probes ESPHome and requests MQTT announcements. Background
+  get/poll and late receipts must not resurrect a removed record. Rediscovered
+  panels start unassigned. Connection badges use online, not delivery result.
+  75 Python tests, 26 frontend tests and local packaging checks passed;
+  real HA acceptance remains pending.
+
 ## Language and collaboration
 
 - Communicate with the user in Ukrainian.
