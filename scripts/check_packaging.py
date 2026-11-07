@@ -21,7 +21,7 @@ def check():
     integration_dirs = sorted(p.name for p in components.iterdir() if p.is_dir() and not p.name.startswith(".") and p.name != "__pycache__")
     require(integration_dirs == [DOMAIN], "Exactly one integration must be packaged under custom_components.")
     integration = components / DOMAIN
-    for relative in ("__init__.py", "config_flow.py", "native.py", "native_hub.py", "native_profile_schema.py", "viewe_guarded_start.yaml", "frontend/panel.js", "frontend/locales/en.js", "frontend/locales/uk.js", "frontend/locales/errors.js", "strings.json", "translations/uk.json"):
+    for relative in ("__init__.py", "config_flow.py", "native.py", "native_hub.py", "native_profile_schema.py", "viewe_guarded_start.yaml", "frontend/panel.js", "frontend/profile-controls.js", "frontend/locales/en.js", "frontend/locales/uk.js", "frontend/locales/errors.js", "strings.json", "translations/uk.json"):
         require((integration / relative).is_file(), f"Missing runtime asset: {relative}")
 
     json_values = {}

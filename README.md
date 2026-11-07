@@ -224,3 +224,19 @@ blue/white. Offline is crossed out and disabled. HA rechecks Running before
 pressing the controller button; the page cannot request shutdown. The UI timeout
 does not change ESPHome's own startup deadlines or cut PSU power. Runtime checks
 on the panel and in Home Assistant remain pending.
+
+## Active profile controls (0.2.4)
+
+Each panel card in **Panels** includes **Active profile controls** for the assigned
+published profile. It reads the original HA entities, never unsaved draft changes:
+lights and switches can be toggled, scripts and automations can be run, and
+Details opens the standard HA entity dialog (including thermostat controls).
+Sensor and weather values update from HA. Shared profiles expose the same
+entities on each panel card; no duplicate or reassigned entities are created.
+Controls remain useful when the display is offline. A delivery hint identifies
+profiles the display has not yet confirmed.
+
+Hidden and demo widgets are excluded from live controls. Unavailable targets
+cannot be operated. BC-250 only offers guarded start while its running sensor
+confirms off; it never exposes the raw Power button. Install the bundled
+`viewe_guarded_start.yaml` script before using BC-250 start.

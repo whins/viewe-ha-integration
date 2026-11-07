@@ -1,4 +1,5 @@
 import test from "node:test";
+import {profileEntities,controlAction} from "../custom_components/viewe_smart_panel/frontend/profile-controls.js";
 import {readFileSync} from "node:fs";
 const packageVersion=JSON.parse(readFileSync(new URL("../custom_components/viewe_smart_panel/manifest.json",import.meta.url),"utf8")).version;
 import assert from "node:assert/strict";
@@ -261,4 +262,90 @@ test("Cancelling removal keeps the panel and explicit Refresh requests rediscove
  const confirm=window.confirm;
  try {window.confirm=()=>false;await panel.action("delete-panel","one");assert.deepEqual(calls,[]);} finally {window.confirm=confirm;}
  await panel.action("refresh");assert.deepEqual(calls,["refresh"]);
+});
+
+
+function profileControlPanel(pages) {
+ const panel=new Panel();panel.language="en";panel.tab="panels";
+ panel.data={panels:{one:{id:"one",name:"Panel",profile_id:"p",result:"applied"}},profiles:{},applied:{p:{id:"p",name:"Home",pages}},entities:[]};
+ panel._hass={states:{}};return panel;
+}
+
+test("Profile control collection deduplicates real entities and excludes demos, hidden widgets and clocks",()=> {
+ const entries=profileEntities({pages:[
+  {id:"a",visible:true,template:"lighting",entity_id:"light.room"},
+  {id:"b",visible:true,template:"lighting",entity_id:"light.room"},
+  {id:"c",visible:true,template:"switch",demo:true,entity_id:"switch.demo"},
+  {id:"d",visible:false,template:"thermostat",entity_id:"climate.hidden"},
+  {id:"e",visible:true,template:"clock"},
+  {id:"f",visible:true,template:"temperature_humidity",temperature_entity_id:"sensor.temp",humidity_entity_id:"sensor.humidity"},
+  {id:"g",visible:true,template:"actions",actions:[{entity_id:"script.scene"},{entity_id:"automation.evening"}]}
+ ]});
+ assert.deepEqual(entries.map(e=>e.entity_id),["light.room","sensor.temp","sensor.humidity","script.scene","automation.evening"]);
+});
+
+test("BC-250 controls always use the guard script and never raw Power press",()=> {
+ const entry=profileEntities({pages:[{id:"bc",visible:true,template:"bc250",name:"PC",entity_id:"binary_sensor.running",power_entity_id:"button.power",guard_script:"script.guarded"}]})[0];
+ const states={"binary_sensor.running":{state:"off"},"button.power":{state:"unknown"},"script.guarded":{state:"off"}};
+ const operation=controlAction(entry,states);
+ assert.equal(operation.domain,"script");assert.equal(operation.service,"turn_on");
+ assert.deepEqual(operation.data,{entity_id:"script.guarded",variables:{state_entity_id:"binary_sensor.running",control_entity_id:"button.power"}});
+ assert.equal(entry.info_entity_id,"binary_sensor.running");
+ for(const bad of ["on","unknown","unavailable"]) {
+  assert.equal(controlAction(entry,{...states,"binary_sensor.running":{state:bad}}),null);
+ }
+ const missing={...states};delete missing["script.guarded"];assert.equal(controlAction(entry,missing),null);
+ assert.equal(controlAction(entry,{...states,"button.power":{state:"unavailable"}}),null);
+});
+
+test("Original HA controls map toggles and runs correctly and block unavailable targets",()=> {
+ for(const [id,service] of [["light.room","toggle"],["switch.room","toggle"],["script.scene","turn_on"],["automation.evening","trigger"]]) {
+  const entry={entity_id:id,kind:"entity"};
+  const operation=controlAction(entry,{[id]:{state:"off"}});
+  assert.equal(operation.service,service);assert.equal(operation.data.entity_id,id);
+  if(id.startsWith("automation."))assert.equal(operation.data.skip_condition,false);
+  assert.equal(controlAction(entry,{[id]:{state:"unavailable"}}),null);
+  assert.equal(controlAction(entry,{}),null);
+ }
+ assert.equal(controlAction({entity_id:"climate.room",kind:"entity"},{"climate.room":{state:"heat"}}),null);
+});
+
+test("Panel controls use the applied snapshot rather than an unsaved draft",()=> {
+ const panel=profileControlPanel([{id:"a",template:"lighting",visible:true,name:"Room",entity_id:"light.applied"}]);
+ panel.draft={pages:[{id:"b",template:"lighting",visible:true,entity_id:"light.draft"}]};
+ panel._hass.states={"light.applied":{state:"on",attributes:{friendly_name:"<Room>"}}};
+ const html=panel.profileControls(panel.data.panels.one);
+ assert.match(html,/&lt;Room&gt;/);assert.match(html,/data-id="light.applied"/);assert.doesNotMatch(html,/light.draft/);
+});
+
+test("Entity controls call the original HA service without profile mutations",async()=> {
+ const panel=profileControlPanel([{id:"a",template:"switch",visible:true,name:"Socket",entity_id:"switch.socket"}]);
+ panel._hass.states={"switch.socket":{state:"off",attributes:{}}};
+ const calls=[];panel._hass.callService=async(...args)=>calls.push(args);
+ await panel.action("entity-control","switch.socket","one");
+ assert.deepEqual(calls,[["switch","toggle",{entity_id:"switch.socket"}]]);
+ assert.equal(panel.data.applied.p.pages[0].entity_id,"switch.socket");
+ await panel.action("entity-control","switch.not_in_profile","one");assert.equal(calls.length,1);
+});
+
+test("More-info opens the original climate entity through HA's native dialog",()=> {
+ const panel=profileControlPanel([{id:"a",template:"thermostat",visible:true,name:"Room",entity_id:"climate.room"}]);
+ let event;panel.dispatchEvent=value=>event=value;
+ panel.action("entity-info","climate.room","one");
+ assert.equal(event.type,"hass-more-info");assert.deepEqual(event.detail,{entityId:"climate.room"});assert.equal(event.composed,true);
+});
+
+test("Demo profiles offer no real HA action targets",async()=> {
+ const panel=profileControlPanel([{id:"a",template:"switch",visible:true,demo:true,entity_id:"switch.socket"}]);
+ const html=panel.profileControls(panel.data.panels.one);
+ assert.match(html,/Demo widgets/);assert.doesNotMatch(html,/data-action="entity-control"/);
+ let called=false;panel._hass.callService=async()=>called=true;
+ await panel.action("entity-control","switch.socket","one");assert.equal(called,false);
+});
+
+test("State updates refresh profile controls only for referenced entities",()=> {
+ const panel=profileControlPanel([{id:"a",template:"switch",visible:true,entity_id:"switch.socket"}]);
+ const original={state:"off",attributes:{}};
+ assert.equal(panel.controlStatesChanged({states:{"switch.socket":original}},{states:{"switch.socket":original,"sensor.other":{state:"10"}}}),false);
+ assert.equal(panel.controlStatesChanged({states:{"switch.socket":original}},{states:{"switch.socket":{state:"on"}}}),true);
 });

@@ -113,3 +113,15 @@
   are added explicitly. Firmware requires capabilities.templates.switch: 1.
 
 - 2026-10-05: Added Actions template (scripts/automations), one or two named touch targets, vertically stacked with a horizontal divider. Integration editor configures targets and optional names. MQTT run uses a validated action_index resolved against the applied profile; offline targets are disabled independently. Firmware build and 37 Python tests passed; physical panel/HA runtime verification pending. No upload or commits performed.
+
+- 2026-11-08: Version 0.2.4 adds active-profile controls inside each panel card.
+  Targets come from the assigned applied snapshot, deduplicated original HA
+  entities, excluding hidden/demo widgets. Direct HA service calls and native
+  more-info dialogs leave entity/device registry ownership unchanged. BC-250
+  starts exclusively through its guard script with confirmed off state; raw
+  Power button control is never exposed. State changes refresh Panels without
+  interrupting profile editing or an open selector. Offline displays do not
+  disable available HA entity controls; unconfirmed delivery is labelled.
+  Local checks: 75 Python and 34 frontend tests. Real HA verification pending.
+  Publication is authorized by the user; HA installation will be performed
+  by the user independently after the release.

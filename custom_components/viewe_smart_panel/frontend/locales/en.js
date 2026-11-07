@@ -1,4 +1,7 @@
 export default {
+  "profileControlsPending": "Showing the assigned published profile. The display has not confirmed applying it yet.",
+  "guardControlHelp": "Install the guarded-start script in Home Assistant to enable BC-250 start.",
+
   "bc250": "BC-250",
   "bc250Power": "BC250 Power button",
   "bc250Running": "BC250 Running sensor (TPMS1)",
@@ -126,5 +129,16 @@ export default {
   "online": "Online",
   "deletePanel": "Remove panel",
   "deletePanelConfirm": "Remove this panel from VIEWE? The HA device, profiles and display configuration are kept. Use Refresh status to rediscover connected panels.",
-  "panelDeleted": "Panel removed. Use Refresh status to discover it again."
+  "panelDeleted": "Panel removed. Use Refresh status to discover it again.",
+  "profileControls": "Active profile controls",
+  "demoControlsHelp": "Demo widgets are controlled locally on the display and do not send commands to real devices.",
+  "noProfileEntities": "This profile has no live HA entities to show.",
+  "startControl": "Start",
+  "toggleControl": "Toggle",
+  "runControl": "Run",
+  "detailsControl": "Details",
+  "onState": "On",
+  "offState": "Off",
+  "controlUnavailable": "The target is unavailable or BC-250 is already running.",
+  "controlSent": "Action sent to Home Assistant."
 };
