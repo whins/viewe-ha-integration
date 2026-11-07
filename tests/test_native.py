@@ -34,6 +34,17 @@ def ready_profile():
 
 
 class EncodingTests(unittest.TestCase):
+    def test_names_and_optional_labels_are_distinct_in_native_v2(self):
+        profile=ready_profile();page=profile["pages"][0]
+        page.update(name="Editor name",label="Display caption",show_label=False)
+        payload=json.loads(native.encode_profile(profile))
+        self.assertEqual(payload["schema_version"],2)
+        self.assertEqual(payload["widgets"][0]["name"],"Editor name")
+        self.assertEqual(payload["widgets"][0]["label"],"Display caption")
+        self.assertFalse(payload["widgets"][0]["show_label"])
+        self.assertEqual(payload["widgets"][1]["label"],"")
+        self.assertEqual(profile["pages"][0]["name"],"Editor name")
+
     def test_demo_all_templates_apply_without_live_entities(self):
         profile=ready_profile()
         for page in profile["pages"]:
@@ -122,6 +133,7 @@ class EncodingTests(unittest.TestCase):
         profile = ready_profile()
         self.assertFalse(models.panel_compatible(panel, profile))
         profile["pages"] = profile["pages"][:1]
+        profile["pages"][0]["label"]=profile["pages"][0]["name"]
         self.assertTrue(models.panel_compatible(panel, profile))
         profile["pages"][0]["show_label"] = False
         self.assertFalse(models.panel_compatible(panel, profile))
@@ -337,6 +349,17 @@ class NativeDeliveryTests(unittest.IsolatedAsyncioTestCase):
         self.hass.services.async_call.reset_mock()
         await self.event()
         self.hass.services.async_call.assert_not_awaited()
+
+    async def test_start_migrates_drafts_and_applied_without_overwriting_empty_labels(self):
+        self.hass.bus=SimpleNamespace(async_listen=lambda *args:lambda:None)
+        legacy=ready_profile();legacy["pages"][0].pop("label")
+        self.hub.store.saved={"profiles":{"home":deepcopy(legacy)},"applied":{"home":deepcopy(legacy)},"panels":{}}
+        await self.hub.async_start()
+        for collection in ("profiles","applied"):
+            pages=self.hub.store.saved[collection]["home"]["pages"]
+            self.assertEqual(pages[0]["label"],pages[0]["name"])
+            self.assertEqual(pages[1]["label"],"")
+        self.hub.async_stop()
 
     async def test_native_only_start_does_not_subscribe_to_mqtt(self):
         self.hass.bus = SimpleNamespace(async_listen=lambda *args: lambda: None)

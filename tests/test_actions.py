@@ -10,6 +10,7 @@ class ActionsTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         await fixtures.HubTests.asyncSetUp(self)
         self.page = new_page("actions")
+        self.page["label"] = self.page["name"]  # Supported legacy MQTT display naming.
         self.page["actions"] = [{"entity_id":"script.scene", "name":""}, {"entity_id":"automation.scene", "name":"Custom"}]
         self.profile["pages"] = [self.page]
         self.hass.states.async_all = lambda: [SimpleNamespace(entity_id=a["entity_id"], attributes={"friendly_name":"HA name"}) for a in self.page["actions"]]

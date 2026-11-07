@@ -247,3 +247,21 @@ Released under the [MIT License](LICENSE), approved by the maintainer.
 
 Version 0.2.5 includes the active-profile controls from 0.2.4 and fixes release
 metadata for HACS/hassfest validation.
+
+## Widget names and labels (0.2.6)
+
+Every widget has a required **Widget name**, used for its entry in the profile
+and the display's Active widget diagnostic. **Display label (optional)** is
+independent; leave it blank for no display caption, or hide a supplied label
+with Show widget label. Changing the selected entity may suggest an automatic
+widget name until the name is edited; it never fills the display label.
+Existing drafts and applied snapshots migrate their old name to label only
+when label is absent. Explicitly empty labels remain empty. Widget IDs, entity
+bindings, profile assignments and revisions are preserved by this migration.
+
+ESPHome profiles now use schema version 2. Update the display firmware first;
+new firmware still reads version 1 profiles and cached assignments. Legacy
+MQTT panels support only their original naming, where label equals name;
+profiles requiring independent/empty captions are incompatible with them.
+Local checks: 80 Python tests, 36 frontend tests and packaging passed. Live HA
+form verification remains pending. Installation in HA is performed by the user.

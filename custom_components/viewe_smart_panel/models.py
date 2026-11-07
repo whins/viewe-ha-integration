@@ -23,7 +23,7 @@ def new_page(template, language="uk"):
         page.update(control_type="AUTO")
     elif template == "weather":
         page["umbrella"] = {"enabled": True, "probability": 40, "forecast_start": "08:00", "forecast_end": "18:00", "limit_time": True, "hide_after": "10:00"}
-    page.update(show_label=True, disabled_pages=[], demo=False)
+    page.update(label="", show_label=True, disabled_pages=[], demo=False)
     if template in {"clock", "temperature_humidity", "thermostat"}:
         names = {"clock": ("Годинник", "Clock"), "temperature_humidity": ("Температура / вологість", "Temperature / humidity"), "thermostat": ("Термостат", "Thermostat")}
         page["name"] = names[template][0 if language == "uk" else 1]
@@ -49,7 +49,7 @@ def panel_compatible(panel, profile):
         except (ValueError, KeyError, TypeError, AttributeError):
             return False
     # These options are only implemented by the ESPHome firmware.
-    if any(p["visible"] and (p.get("demo", False) or p.get("show_label", True) is not True or p.get("disabled_pages") or
+    if any(p["visible"] and (p.get("demo", False) or p.get("label", p["name"]) != p["name"] or p.get("show_label", True) is not True or p.get("disabled_pages") or
            (p.get("icon") and p["icon"] != ("bulb" if p["template"] == "lighting" else "power")) or
            p.get("layout", "normal") != "normal") for p in profile["pages"]):
         return False
@@ -118,6 +118,12 @@ def validate_profile(value, *, apply=False, states=None):
         seen.add(page_id)
         if not isinstance(page.get("name"), str) or not page["name"].strip() or len(page["name"]) > 128:
             raise ValueError("Сторінка повинна мати назву до 128 символів")
+        page.setdefault("label", page["name"])  # Legacy profiles used name for the display too.
+        if not isinstance(page["label"], str) or len(page["label"].encode("utf-8")) > 128:
+            raise ValueError("Widget label must contain at most 128 UTF-8 bytes")
+        if len(page["name"].encode("utf-8")) > 128:
+            raise ValueError("Widget name must contain at most 128 UTF-8 bytes")
+        page["label"] = page["label"].strip()
         if type(page.get("visible")) is not bool or type(page.get("name_auto", True)) is not bool:
             raise ValueError("Некоректна видимість або режим назви")
         if type(page.get("demo", False)) is not bool:

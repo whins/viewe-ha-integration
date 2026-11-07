@@ -134,3 +134,15 @@
   Firmware diagnostics were installed through COM10; encrypted Native API
   confirmed all seven entities and all six diagnostic sensor states. The user
   will update the HA integration independently.
+
+- 2026-11-08: Version 0.2.6 separates required widget name (editor/diagnostics)
+  from optional label (display only). New pages have an empty label. Startup
+  migration copies old names only where label is absent in drafts/applied;
+  empty labels, IDs, revisions and assignments survive. Native schema v2
+  requires name; firmware accepts v1 caches with old-label-to-name fallback.
+  Firmware profile.py and bundled native_profile_schema.py are identical.
+  Legacy MQTT supports only label==name; reject other captions explicitly.
+  Checks: 80 Python, 36 frontend tests and packaging passed; real HA pending.
+  Firmware installed via COM10 with verified flash; encrypted API confirms
+  the existing active profile/widget survived the upgrade. HA installation
+  is performed independently by the user after publication.

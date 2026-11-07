@@ -1,7 +1,6 @@
 export default {
   "profileControlsPending": "Показано призначений опублікований профіль. Дисплей ще не підтвердив його застосування.",
   "guardControlHelp": "Для запуску BC-250 встановіть у Home Assistant захисний сценарій запуску.",
-
   "bc250": "BC-250",
   "bc250Power": "Кнопка BC250 Power",
   "bc250Running": "Датчик BC250 Running (TPMS1)",
@@ -140,5 +139,7 @@ export default {
   "onState": "Увімкнено",
   "offState": "Вимкнено",
   "controlUnavailable": "Пристрій недоступний або BC-250 вже працює.",
-  "controlSent": "Команду передано в Home Assistant."
+  "controlSent": "Команду передано в Home Assistant.",
+  "widgetLabel": "Підпис на дисплеї (необов’язково)",
+  "widgetLabelHelp": "Залиште порожнім, щоб не показувати підпис. Назва віджета використовується в редакторі та діагностиці."
 };

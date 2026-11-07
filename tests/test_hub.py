@@ -79,6 +79,7 @@ class HubTests(unittest.IsolatedAsyncioTestCase):
         self.hub = hub_module.VieweHub(self.hass, "viewe")
         self.profile = await self.hub.async_create_profile("Дім")
         for page in self.profile["pages"]:
+            page["label"] = page["name"]  # Legacy MQTT fixture.
             page["entity_id"] = "weather.home" if page["template"] == "weather" else "light.kitchen"
         self.hass.states.async_all = lambda: [
             SimpleNamespace(entity_id="weather.home", attributes={}),

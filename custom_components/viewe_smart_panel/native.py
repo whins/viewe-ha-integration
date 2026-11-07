@@ -18,7 +18,7 @@ def encode_profile(profile):
             continue
         kind = page["template"]
         widget = {"id": page["id"], "type": {"lighting": "light", "bc250": "switch"}.get(kind, kind),
-                  "label": page["name"], "show_label": page.get("show_label", True),
+                  "name": page["name"], "label": page.get("label", page["name"]), "show_label": page.get("show_label", True),
                   "disabled_pages": page.get("disabled_pages", [])}
         if page.get("demo", False):
             widget["demo"] = True
@@ -54,7 +54,7 @@ def encode_profile(profile):
             elif kind == "switch":
                 widget.update(icon=page.get("icon", "power"), layout=page.get("layout", "normal"))
         widgets.append(widget)
-    result = validate_profile({"schema_version": 1, "id": profile["id"], "revision": profile["revision"], "widgets": widgets})
+    result = validate_profile({"schema_version": 2, "id": profile["id"], "revision": profile["revision"], "widgets": widgets})
     return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
 
 

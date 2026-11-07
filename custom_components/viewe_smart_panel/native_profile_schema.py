@@ -8,7 +8,7 @@ TOKEN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 ENTITY = re.compile(r"^([a-z_]+)\.[a-z0-9_]+$")
 TYPES = {"switch", "light", "weather", "actions", "clock", "temperature_humidity", "thermostat"}
 PAGES = {"light": {"cct", "color", "effects"}, "weather": {"forecast"}, "thermostat": {"modes", "fan", "presets", "swing", "range"}}
-COMMON = {"id", "type", "label", "show_label", "disabled_pages", "demo"}
+COMMON = {"id", "type", "name", "label", "show_label", "disabled_pages", "demo"}
 FIELDS = {
     "switch": {"entity_id", "state_entity_id", "control", "icon", "layout"},
     "light": {"entity_id", "icon"},
@@ -73,9 +73,10 @@ def validate_profile(value):
     if not isinstance(value, dict) or set(value) - {"schema_version", "id", "revision", "widgets"}:
         raise ValueError("Invalid profile fields")
     result = dict(value)
-    if type(result.get("schema_version", 1)) is not int or result.get("schema_version", 1) != 1:
+    version = result.get("schema_version", 2)
+    if type(version) is not int or version not in (1, 2):
         raise ValueError("Unsupported schema_version")
-    result["schema_version"] = 1
+    result["schema_version"] = 2
     if not isinstance(result.get("id"), str) or not TOKEN.fullmatch(result["id"]):
         raise ValueError("Invalid profile id")
     revision = result.get("revision", 0)
@@ -100,7 +101,13 @@ def validate_profile(value):
         if not isinstance(wid, str) or not TOKEN.fullmatch(wid) or wid in seen:
             raise ValueError("Invalid or duplicate widget id")
         seen.add(wid)
-        text(widget.get("label"), "label")
+        if version == 1 and "name" not in widget:
+            widget["name"] = widget.get("label")
+        text(widget.get("name"), "name")
+        label = widget.get("label", "")
+        if not isinstance(label, str) or len(label.encode("utf-8")) > 128:
+            raise ValueError("label must contain at most 128 UTF-8 bytes")
+        widget["label"] = label.strip()
         if type(widget.get("show_label", True)) is not bool:
             raise ValueError("show_label must be boolean")
         widget["show_label"] = widget.get("show_label", True)

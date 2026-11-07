@@ -10,6 +10,7 @@ class SwitchTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         await fixtures.HubTests.asyncSetUp(self)
         self.page = new_page("switch", "en")
+        self.page["label"] = self.page["name"]  # Supported legacy MQTT display naming.
         self.page["entity_id"] = "switch.socket"
         self.profile["pages"] = [self.page]
         self.hass.states.async_all = lambda: [SimpleNamespace(entity_id="switch.socket", attributes={})]

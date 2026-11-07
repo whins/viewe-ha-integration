@@ -349,3 +349,28 @@ test("State updates refresh profile controls only for referenced entities",()=> 
  assert.equal(panel.controlStatesChanged({states:{"switch.socket":original}},{states:{"switch.socket":original,"sensor.other":{state:"10"}}}),false);
  assert.equal(panel.controlStatesChanged({states:{"switch.socket":original}},{states:{"switch.socket":{state:"on"}}}),true);
 });
+
+
+test("Widget name and optional display label render separately for every template",()=> {
+ const panel=new Panel();panel.language="en";panel.data={entities:[]};
+ for(const template of ["lighting","switch","weather","bc250","actions","clock","temperature_humidity","thermostat"]) {
+  const page={template,name:"Editor name",label:"Display caption",entity_id:"",actions:[{entity_id:"",name:""}],umbrella:{enabled:false},disabled_pages:[]};
+  const html=panel.pageForm(page);
+  assert.match(html,/Widget name/);
+  assert.match(html,/data-field="name" required value="Editor name"/);
+  assert.match(html,/Display label \(optional\)/);
+  assert.match(html,/data-field="label" value="Display caption"/);
+  assert.doesNotMatch(html,/data-field="label"[^>]*required/);
+ }
+ const html=panel.pageForm({template:"switch",name:"Editor name",label:"",entity_id:"switch.room"});
+ assert.match(html,/data-field="label" value=""/);
+});
+
+test("Editing a display label leaves the widget name unchanged and preserves focus",()=> {
+ const panel=new Panel();panel.language="en";const handlers={};
+ const input={tagName:"INPUT",type:"text",dataset:{field:"label"},value:"New caption",addEventListener:(event,fn)=>handlers[event]=fn};
+ panel.pageId="w";panel.draft={pages:[{id:"w",template:"switch",name:"Editor name",label:"Old caption"}]};
+ panel.shadowRoot.querySelectorAll=selector=>selector==="[data-field]" ? [input] : [];
+ panel.render=()=>{throw new Error("Text editing must not replace the focused input");};panel.markDirty=()=>{panel.dirty=true;};panel.bind();
+ handlers.input();assert.equal(panel.draft.pages[0].name,"Editor name");assert.equal(panel.draft.pages[0].label,"New caption");assert.equal(panel.dirty,true);
+});

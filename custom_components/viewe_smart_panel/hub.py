@@ -50,6 +50,8 @@ class VieweHub(NativeHubMixin):
             for collection in ("profiles", "applied"):
                 for profile in self.data[collection].values():
                     profile.pop("requirements", None)
+                    for page in profile.get("pages", []):
+                        page.setdefault("label", page.get("name", ""))
             await self.store.async_save(self.data)
         try:
             if self.mqtt_enabled:

@@ -2,7 +2,7 @@ import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
 import {profileEntities,controlAction} from "./profile-controls.js";
-const UI_VERSION = "0.2.5";
+const UI_VERSION = "0.2.6";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -176,7 +176,7 @@ class ViewePanel extends HTMLElement {
   pageForm(page) {
     const e=escapeHtml;
     const options=(field,label,values,fallback)=>`<label>${this.t(label)}<select data-field="${field}">${values.map(value=>`<option value="${e(value)}" ${(page[field] ?? fallback)===value ? "selected" : ""}>${e(this.t(value))}</option>`).join("")}</select></label>`;
-    let html=`<section><label class="check"><input type="checkbox" data-field="demo" ${page.demo ? "checked" : ""}> ${this.t("demo")}</label><p class="muted">${this.t("demoHelp")}</p><label class="check"><input type="checkbox" data-field="show_label" ${page.show_label!==false ? "checked" : ""}> ${this.t("showLabel")}</label>`;
+    let html=`<section><label>${this.t("widgetLabel")}<input data-field="label" value="${e(page.label ?? page.name)}" maxlength="128"></label><p class="muted">${this.t("widgetLabelHelp")}</p><label class="check"><input type="checkbox" data-field="demo" ${page.demo ? "checked" : ""}> ${this.t("demo")}</label><p class="muted">${this.t("demoHelp")}</p><label class="check"><input type="checkbox" data-field="show_label" ${page.show_label!==false ? "checked" : ""}> ${this.t("showLabel")}</label>`;
     const pages={lighting:["cct","color","effects"],weather:["forecast"],thermostat:["modes","fan","presets","swing","range"]}[page.template] || [];
     if(pages.length)html+=`<p>${this.t("disabledPages")}</p>${pages.map(name=>`<label class="check"><input type="checkbox" data-disable-page="${name}" ${(page.disabled_pages || []).includes(name) ? "checked" : ""}> ${this.t(name)}</label>`).join("")}`;
     if(["switch","lighting"].includes(page.template))html+=options("icon","icon",["power","bulb","steam"],page.template==="lighting" ? "bulb" : "power");
@@ -195,7 +195,7 @@ class ViewePanel extends HTMLElement {
     const e = escapeHtml;
     if (["clock","temperature_humidity","thermostat"].includes(page.template)) {
       const select=(field,label,values,fallback)=>`<label>${this.t(label)}<select data-field="${field}">${values.map(v=>`<option value="${e(v)}" ${(page[field] ?? fallback)===v ? "selected" : ""}>${e(this.t(v))}</option>`).join("")}</select></label>`;
-      let html=`<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label>`;
+      let html=`<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" required value="${e(page.name)}" maxlength="128"></label>`;
       if(page.template==="clock")html+=select("format","clockFormat",["24h","12h"],"24h");
       if(page.template==="temperature_humidity")html+=this.entityField(page,"temperature_entity_id","sensor","temperatureSensor")+this.entityField(page,"humidity_entity_id","sensor","humiditySensor");
       if(page.template==="thermostat")html+=this.entityField(page,"entity_id","climate","climateEntity")+select("variant","variant",["auto","heater","air_conditioner"],"auto")+select("temperature_unit","temperatureUnit",["auto","°C","°F"],"auto");
@@ -203,15 +203,15 @@ class ViewePanel extends HTMLElement {
     }
     if (page.template === "bc250") {
       const picker = (field,domain,label) => `<label>${this.t(label)}<select data-field="${field}"><option value="">${this.t("chooseEntity")}</option>${page[field] && !this.data.entities.some(x=>x.entity_id===page[field]) ? `<option selected value="${e(page[field])}">${e(page[field])} — ${this.t("missing")}</option>` : ""}${this.data.entities.filter(x=>x.entity_id.startsWith(domain+".")).map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page[field] ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
-      return `<h2>BC-250</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label>${picker("power_entity_id","button","bc250Power")}${picker("entity_id","binary_sensor","bc250Running")}<p class="muted">${this.t("bc250Help")}</p></section>`;
+      return `<h2>BC-250</h2><section><label>${this.t("pageName")}<input data-field="name" required value="${e(page.name)}" maxlength="128"></label>${picker("power_entity_id","button","bc250Power")}${picker("entity_id","binary_sensor","bc250Running")}<p class="muted">${this.t("bc250Help")}</p></section>`;
     }
     if (page.template === "actions") {
       const targets = this.data.entities.filter(x=>/^(script|automation)\./.test(x.entity_id));
-      return `<h2>${this.t("actions")}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${this.t("actionCount")}<select data-action-count><option value="1" ${page.actions.length===1 ? "selected" : ""}>1</option><option value="2" ${page.actions.length===2 ? "selected" : ""}>2</option></select></label>${page.actions.map((a,i)=>`<label>${this.t("actionTarget")} ${i+1}<select data-run-index="${i}" data-run-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${a.entity_id && !targets.some(x=>x.entity_id===a.entity_id) ? `<option selected value="${e(a.entity_id)}">${e(a.entity_id)} — ${this.t("missing")}</option>` : ""}${targets.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===a.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label><label>${this.t("actionName")}<input data-run-index="${i}" data-run-field="name" value="${e(a.name)}" maxlength="128"></label>`).join("")}</section>`;
+      return `<h2>${this.t("actions")}</h2><section><label>${this.t("pageName")}<input data-field="name" required value="${e(page.name)}" maxlength="128"></label><label>${this.t("actionCount")}<select data-action-count><option value="1" ${page.actions.length===1 ? "selected" : ""}>1</option><option value="2" ${page.actions.length===2 ? "selected" : ""}>2</option></select></label>${page.actions.map((a,i)=>`<label>${this.t("actionTarget")} ${i+1}<select data-run-index="${i}" data-run-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${a.entity_id && !targets.some(x=>x.entity_id===a.entity_id) ? `<option selected value="${e(a.entity_id)}">${e(a.entity_id)} — ${this.t("missing")}</option>` : ""}${targets.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===a.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label><label>${this.t("actionName")}<input data-run-index="${i}" data-run-field="name" value="${e(a.name)}" maxlength="128"></label>`).join("")}</section>`;
     }
     const entities = this.data.entities.filter(x=>x.entity_id.startsWith(page.template === "lighting" ? "light." : page.template === "switch" ? "switch." : "weather."));
     const entity = entities.find(x=>x.entity_id===page.entity_id);
-    let html = `<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" value="${e(page.name)}" maxlength="128"></label><label>${page.template === "lighting" ? this.t("lightEntity") : page.template === "switch" ? this.t("switchEntity") : this.t("weatherEntity")}<select data-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${page.entity_id && !entity ? `<option selected value="${e(page.entity_id)}">${e(page.entity_id)} — ${this.t("missing")}</option>` : ""}${entities.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
+    let html = `<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" required value="${e(page.name)}" maxlength="128"></label><label>${page.template === "lighting" ? this.t("lightEntity") : page.template === "switch" ? this.t("switchEntity") : this.t("weatherEntity")}<select data-field="entity_id"><option value="">${this.t("chooseEntity")}</option>${page.entity_id && !entity ? `<option selected value="${e(page.entity_id)}">${e(page.entity_id)} — ${this.t("missing")}</option>` : ""}${entities.map(x=>`<option value="${e(x.entity_id)}" ${x.entity_id===page.entity_id ? "selected" : ""}>${e(x.name)} (${e(x.entity_id)})</option>`).join("")}</select></label>`;
     if (page.template === "lighting") {
       const types = ["AUTO", ...(entity?.types || [])];
       if (!types.includes(page.control_type)) types.push(page.control_type);
@@ -250,7 +250,7 @@ class ViewePanel extends HTMLElement {
         if (page.template==="lighting") page.control_type="AUTO";
       }
       this.markDirty();
-      if (field !== "name") this.render();
+      if (field !== "name" && field !== "label") this.render();
     }));
     root.querySelectorAll("[data-disable-page]").forEach(el=>el.addEventListener("change",()=> {
       const page=this.draft.pages.find(p=>p.id===this.pageId),name=el.dataset.disablePage;

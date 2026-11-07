@@ -15,6 +15,7 @@ class ProfileTests(unittest.TestCase):
         profile = models.new_profile("Дім")
         profile["pages"][0]["entity_id"] = "weather.home"
         profile["pages"][1]["entity_id"] = "light.kitchen"
+        for page in profile["pages"]:page["label"]=page["name"]
         return profile
 
     def test_initial_pages_and_umbrella(self):
@@ -107,3 +108,31 @@ class ProfileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WidgetNamingTests(unittest.TestCase):
+    def profile(self):
+        return models.new_profile("Home", "en")
+
+    def test_new_widgets_have_names_and_empty_optional_labels(self):
+        for kind in models.TEMPLATES:
+            page=models.new_page(kind,"en")
+            self.assertTrue(page["name"].strip())
+            self.assertEqual(page["label"],"")
+
+    def test_name_is_required_and_label_is_independent(self):
+        profile=self.profile();page=profile["pages"][0]
+        page.update(name="Weather in profile",label="На дисплеї")
+        result=models.validate_profile(profile)
+        self.assertEqual(result["pages"][0]["name"],"Weather in profile")
+        self.assertEqual(result["pages"][0]["label"],"На дисплеї")
+        for field,invalid in (("name",""),("name"," "),("name",None),("label",None),("label",12),("label","Я"*65)):
+            value=self.profile();value["pages"][0][field]=invalid
+            with self.subTest(field=field,invalid=invalid),self.assertRaises(ValueError):models.validate_profile(value)
+
+    def test_legacy_names_are_copied_only_when_label_is_missing(self):
+        profile=self.profile();del profile["pages"][0]["label"]
+        result=models.validate_profile(profile)
+        self.assertEqual(result["pages"][0]["label"],profile["pages"][0]["name"])
+        self.assertEqual(result["pages"][1]["label"],"")
+        self.assertNotIn("label",profile["pages"][0])

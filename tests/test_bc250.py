@@ -9,6 +9,7 @@ class BC250Tests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         await fixtures.HubTests.asyncSetUp(self)
         self.page = new_page('bc250')
+        self.page["label"] = self.page["name"]  # Supported legacy MQTT display naming.
         self.page.update(entity_id='binary_sensor.bc250_running', power_entity_id='button.bc250_power')
         self.profile['pages'] = [self.page]
         self.running = 'off'
