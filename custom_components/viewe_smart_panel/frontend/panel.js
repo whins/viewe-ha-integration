@@ -2,7 +2,7 @@ import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
 import {profileEntities,controlAction} from "./profile-controls.js";
-const UI_VERSION = "0.2.4";
+const UI_VERSION = "0.2.5";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 

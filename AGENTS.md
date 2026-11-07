@@ -125,3 +125,12 @@
   Local checks: 75 Python and 34 frontend tests. Real HA verification pending.
   Publication is authorized by the user; HA installation will be performed
   by the user independently after the release.
+
+- 2026-11-08: Version 0.2.5 packages 0.2.4 functionality with sorted manifest
+  keys and the MIT License explicitly selected by the user. Repository
+  description/topics are set for HACS. The packaging check enforces manifest
+  ordering. Initial 0.2.4 remote CI passed local checks but failed on these
+  pre-existing repository metadata omissions; final remote checks are pending.
+  Firmware diagnostics were installed through COM10; encrypted Native API
+  confirmed all seven entities and all six diagnostic sensor states. The user
+  will update the HA integration independently.

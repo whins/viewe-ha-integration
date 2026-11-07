@@ -240,3 +240,10 @@ Hidden and demo widgets are excluded from live controls. Unavailable targets
 cannot be operated. BC-250 only offers guarded start while its running sensor
 confirms off; it never exposes the raw Power button. Install the bundled
 `viewe_guarded_start.yaml` script before using BC-250 start.
+
+## License
+
+Released under the [MIT License](LICENSE), approved by the maintainer.
+
+Version 0.2.5 includes the active-profile controls from 0.2.4 and fixes release
+metadata for HACS/hassfest validation.

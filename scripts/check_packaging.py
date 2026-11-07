@@ -32,6 +32,7 @@ def check():
             errors.append(f"Invalid or missing JSON file {path.relative_to(ROOT)}: {err}")
 
     manifest = json_values.get(integration / "manifest.json", {})
+    require(list(manifest) == ["domain", "name", *sorted(set(manifest) - {"domain", "name"})], "Manifest keys must be domain, name, then alphabetical order.")
     for key in ("domain", "name", "documentation", "issue_tracker", "codeowners", "version"):
         require(bool(manifest.get(key)), f"Missing HACS integration metadata: {key}")
     require(manifest.get("domain") == DOMAIN, "Manifest domain must match its directory.")
