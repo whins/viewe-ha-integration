@@ -14,7 +14,7 @@ FIELDS = {
     "light": {"entity_id", "icon"},
     "weather": {"entity_id", "umbrella"},
     "actions": {"targets"},
-    "clock": {"format"},
+    "clock": {"format", "theme"},
     "temperature_humidity": {"temperature_entity_id", "humidity_entity_id"},
     "thermostat": {"entity_id", "variant", "temperature_unit"},
 }
@@ -144,6 +144,10 @@ def validate_profile(value):
                 if key in widget:
                     entity(widget[key], {"sensor"})
         elif kind == "clock":
+            theme = widget.get("theme", "digital")
+            if not isinstance(theme, str) or theme not in {"digital", "stacked", "analog", "seconds_ring"}:
+                raise ValueError("Invalid clock theme")
+            widget["theme"] = theme
             if widget.get("format", "24h") not in ("12h", "24h"):
                 raise ValueError("Invalid clock format")
             widget["format"] = widget.get("format", "24h")

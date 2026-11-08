@@ -31,6 +31,7 @@ def encode_profile(profile):
                                  for action in page["actions"]]
         elif kind == "clock":
             widget["format"] = page.get("format", "24h")
+            widget["theme"] = page.get("theme", "digital")
         elif kind == "temperature_humidity":
             widget.update({key: page[key] for key in ("temperature_entity_id", "humidity_entity_id") if page.get(key)})
         else:
@@ -55,6 +56,9 @@ def encode_profile(profile):
                 widget.update(icon=page.get("icon", "power"), layout=page.get("layout", "normal"))
         widgets.append(widget)
     result = validate_profile({"schema_version": 2, "id": profile["id"], "revision": profile["revision"], "widgets": widgets})
+    # Default remains wire-compatible with firmware predating the optional theme field.
+    for widget in result["widgets"]:
+        if widget["type"]=="clock" and widget.get("theme")=="digital": widget.pop("theme",None)
     return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
 
 

@@ -146,3 +146,14 @@
   Firmware installed via COM10 with verified flash; encrypted API confirms
   the existing active profile/widget survived the upgrade. HA installation
   is performed independently by the user after publication.
+
+- 2026-11-08: Version 0.2.7 adds clock theme selection: digital (default),
+  stacked, analog and seconds_ring, with the agreed Ukrainian names and English
+  translations. Theme and 12/24-hour format are independent. Existing profiles
+  need no migration. The encoder omits default digital for wire compatibility;
+  non-default themes require updated firmware. Shared schema remains identical
+  to firmware profile.py. Actual HA installation/theme rendering is pending;
+  Checks: 81 Python tests, 38 frontend tests and local packaging passed.
+  Display firmware was installed via COM10 with verified flash. Publication
+  of both repositories and the 0.2.7 release is explicitly authorized. The
+  user updates Home Assistant independently through HACS.

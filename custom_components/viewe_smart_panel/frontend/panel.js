@@ -2,7 +2,7 @@ import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
 import {profileEntities,controlAction} from "./profile-controls.js";
-const UI_VERSION = "0.2.6";
+const UI_VERSION = "0.2.7";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -196,7 +196,7 @@ class ViewePanel extends HTMLElement {
     if (["clock","temperature_humidity","thermostat"].includes(page.template)) {
       const select=(field,label,values,fallback)=>`<label>${this.t(label)}<select data-field="${field}">${values.map(v=>`<option value="${e(v)}" ${(page[field] ?? fallback)===v ? "selected" : ""}>${e(this.t(v))}</option>`).join("")}</select></label>`;
       let html=`<h2>${this.t(page.template)}</h2><section><label>${this.t("pageName")}<input data-field="name" required value="${e(page.name)}" maxlength="128"></label>`;
-      if(page.template==="clock")html+=select("format","clockFormat",["24h","12h"],"24h");
+      if(page.template==="clock")html+=select("theme","clockTheme",["digital","stacked","analog","seconds_ring"],"digital")+select("format","clockFormat",["24h","12h"],"24h");
       if(page.template==="temperature_humidity")html+=this.entityField(page,"temperature_entity_id","sensor","temperatureSensor")+this.entityField(page,"humidity_entity_id","sensor","humiditySensor");
       if(page.template==="thermostat")html+=this.entityField(page,"entity_id","climate","climateEntity")+select("variant","variant",["auto","heater","air_conditioner"],"auto")+select("temperature_unit","temperatureUnit",["auto","°C","°F"],"auto");
       return html+"</section>";

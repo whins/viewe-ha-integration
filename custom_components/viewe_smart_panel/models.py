@@ -29,6 +29,7 @@ def new_page(template, language="uk"):
         page["name"] = names[template][0 if language == "uk" else 1]
     if template == "clock":
         page["format"] = "24h"
+        page["theme"] = "digital"
     elif template == "temperature_humidity":
         page.update(temperature_entity_id="", humidity_entity_id="")
     elif template == "thermostat":
@@ -140,6 +141,8 @@ def validate_profile(value, *, apply=False, states=None):
         if page.get("layout", "normal") not in {"normal", "fullscreen"}:
             raise ValueError("Invalid layout")
         if page["template"] == "clock":
+            if not isinstance(page.get("theme", "digital"), str) or page.get("theme", "digital") not in {"digital", "stacked", "analog", "seconds_ring"}:
+                raise ValueError("Invalid clock theme")
             if page.get("format", "24h") not in {"12h", "24h"}:
                 raise ValueError("Invalid clock format")
             continue

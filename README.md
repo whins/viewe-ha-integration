@@ -265,3 +265,21 @@ MQTT panels support only their original naming, where label equals name;
 profiles requiring independent/empty captions are incompatible with them.
 Local checks: 80 Python tests, 36 frontend tests and packaging passed. Live HA
 form verification remains pending. Installation in HA is performed by the user.
+
+## Clock themes (0.2.7)
+
+Clock widgets have a **Clock theme** selector alongside Time format:
+
+| Theme | Native value | Display |
+| --- | --- | --- |
+| Large digital | digital | Large time, weekday and full date. |
+| Two rows | stacked | Hours above minutes, with a blue accent. |
+| Analog | analog | Dial, three hands and date. |
+| Seconds ring | seconds_ring | Digital time, seconds progress ring and date. |
+
+The Ukrainian interface uses the names agreed in the design review. Existing
+profiles default to Large digital; choosing a theme leaves entity bindings,
+widget name, display label and 12/24-hour format unchanged. Update display
+firmware before selecting non-default themes. Default digital is omitted from
+Native JSON for compatibility with existing clock firmware. Clock time remains
+local to ESPHome and does not require a clock entity in Home Assistant.

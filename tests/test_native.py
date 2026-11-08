@@ -34,6 +34,25 @@ def ready_profile():
 
 
 class EncodingTests(unittest.TestCase):
+    def test_each_clock_theme_reaches_native_profile_and_defaults_remain_compatible(self):
+        page=models.new_page("clock","en")
+        self.assertEqual(page["theme"],"digital")
+        profile={"id":"clocks","name":"Clocks","revision":1,"pages":[page]}
+        for theme in ("digital","stacked","analog","seconds_ring"):
+            page["theme"]=theme
+            checked=models.validate_profile(profile,apply=True,states={})
+            widget=json.loads(native.encode_profile(checked))["widgets"][0]
+            self.assertEqual(widget.get("theme","digital"),theme)
+            self.assertEqual(widget["format"],"24h")
+            if theme=="digital":self.assertNotIn("theme",widget)
+        del page["theme"]
+        widget=json.loads(native.encode_profile(profile))["widgets"][0]
+        self.assertNotIn("theme",widget)
+        for bad in ("other","",None,True,[],{}):
+            page["theme"]=bad
+            with self.subTest(bad=bad),self.assertRaises(ValueError):models.validate_profile(profile)
+            with self.assertRaises(ValueError):native.encode_profile(profile)
+
     def test_names_and_optional_labels_are_distinct_in_native_v2(self):
         profile=ready_profile();page=profile["pages"][0]
         page.update(name="Editor name",label="Display caption",show_label=False)

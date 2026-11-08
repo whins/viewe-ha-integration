@@ -374,3 +374,28 @@ test("Editing a display label leaves the widget name unchanged and preserves foc
  panel.render=()=>{throw new Error("Text editing must not replace the focused input");};panel.markDirty=()=>{panel.dirty=true;};panel.bind();
  handlers.input();assert.equal(panel.draft.pages[0].name,"Editor name");assert.equal(panel.draft.pages[0].label,"New caption");assert.equal(panel.dirty,true);
 });
+
+
+test("Clock themes use the approved Ukrainian names and keep time format separate",()=> {
+ const panel=new Panel();panel.language="uk";panel.data={entities:[]};
+ for(const theme of ["digital","stacked","analog","seconds_ring"]) {
+  const html=panel.pageForm({template:"clock",name:"Clock",label:"",theme,format:"12h"});
+  assert.match(html,/Тема годинника/);
+  for(const name of ["Великий цифровий","Два рядки","Аналоговий","Секундне кільце"])assert.ok(html.includes(name));
+  assert.ok(html.includes(`value="${theme}" selected`));
+  assert.match(html,/value="12h" selected/);
+ }
+ const old=panel.pageForm({template:"clock",name:"Old clock",format:"24h"});
+ assert.match(old,/value="digital" selected/);
+ panel.language="en";
+ assert.match(panel.pageForm({template:"clock",name:"Clock",theme:"analog",format:"24h"}),/Clock theme/);
+});
+
+test("Theme selection updates only the selected clock and preserves name, label and time format",()=> {
+ const panel=new Panel();const handlers={};
+ const input={tagName:"SELECT",type:"select-one",dataset:{field:"theme"},value:"seconds_ring",addEventListener:(event,fn)=>handlers[event]=fn};
+ panel.pageId="c";panel.draft={pages:[{id:"c",template:"clock",name:"Desk clock",label:"Desk",theme:"digital",format:"12h"},{id:"other",theme:"analog"}]};
+ panel.shadowRoot.querySelectorAll=selector=>selector==="[data-field]" ? [input] : [];
+ panel.markDirty=()=>{panel.dirty=true;};panel.render=()=>{};panel.bind();handlers.change();
+ assert.equal(panel.draft.pages[0].theme,"seconds_ring");assert.equal(panel.draft.pages[0].format,"12h");assert.equal(panel.draft.pages[0].name,"Desk clock");assert.equal(panel.draft.pages[0].label,"Desk");assert.equal(panel.draft.pages[1].theme,"analog");assert.equal(panel.dirty,true);
+});

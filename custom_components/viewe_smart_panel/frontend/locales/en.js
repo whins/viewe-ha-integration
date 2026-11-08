@@ -141,5 +141,10 @@ export default {
   "controlUnavailable": "The target is unavailable or BC-250 is already running.",
   "controlSent": "Action sent to Home Assistant.",
   "widgetLabel": "Display label (optional)",
-  "widgetLabelHelp": "Leave blank to display the widget without a label. The widget name is used only in the editor and diagnostics."
+  "widgetLabelHelp": "Leave blank to display the widget without a label. The widget name is used only in the editor and diagnostics.",
+  "clockTheme": "Clock theme",
+  "digital": "Large digital",
+  "stacked": "Two rows",
+  "analog": "Analog",
+  "seconds_ring": "Seconds ring"
 };
