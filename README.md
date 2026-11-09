@@ -283,3 +283,23 @@ widget name, display label and 12/24-hour format unchanged. Update display
 firmware before selecting non-default themes. Default digital is omitted from
 Native JSON for compatibility with existing clock firmware. Clock time remains
 local to ESPHome and does not require a clock entity in Home Assistant.
+
+## Editor feedback and prolonged problems (0.2.8)
+
+Action feedback uses Home Assistant's native toast manager instead of inserting
+banners above the editor content. Successful actions disappear after four
+seconds. Errors remain dismissible and offer Details, which opens the full
+message in a modal with selectable plain text. Background refresh failures are
+reported once per distinct error and clear on recovery. Failed initial loading
+has an explicit Retry button and does not retry on every HA state update.
+
+An assigned panel's delivery/application failure lasting at least two minutes,
+or offline state lasting at least five minutes, creates one persistent HA
+notification. Checks run every 30 seconds. Unassigned panels and deliberate
+local profile overrides are excluded. Notifications clear after recovery,
+unassignment, panel removal or integration unload. Repeated checks do not
+recreate a manually dismissed warning in the same problem episode. Notification
+IDs are scoped to the integration prefix and panel; unrelated HA notifications
+are never touched. These backend warnings also work while the editor is closed.
+
+This update affects the integration only; display firmware is unchanged.

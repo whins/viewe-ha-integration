@@ -11,7 +11,7 @@ import sys
 from time import monotonic
 from types import ModuleType, SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 
 def module(name, **attrs):
@@ -35,6 +35,7 @@ class MemoryStore:
 module("homeassistant")
 module("homeassistant.components")
 mqtt = module("homeassistant.components.mqtt", is_connected=lambda hass: True, async_publish=AsyncMock())
+notifications = module("homeassistant.components.persistent_notification", async_create=Mock(), async_dismiss=Mock())
 module("homeassistant.core", callback=lambda fn: fn)
 module("homeassistant.const", EVENT_STATE_CHANGED="state_changed")
 module("homeassistant.helpers")

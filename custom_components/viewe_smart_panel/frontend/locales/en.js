@@ -146,5 +146,10 @@ export default {
   "digital": "Large digital",
   "stacked": "Two rows",
   "analog": "Analog",
-  "seconds_ring": "Seconds ring"
+  "seconds_ring": "Seconds ring",
+  "notificationDetails": "Details",
+  "notificationError": "Action failed",
+  "closeNotification": "Close",
+  "loadFailed": "Could not load the VIEWE editor.",
+  "retryLoad": "Retry"
 };

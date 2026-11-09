@@ -2,7 +2,8 @@ import en from "./locales/en.js";
 import uk from "./locales/uk.js";
 import {englishError} from "./locales/errors.js";
 import {profileEntities,controlAction} from "./profile-controls.js";
-const UI_VERSION = "0.2.7";
+import {showToast,closeToast,closeErrorDetails} from "./notifications.js";
+const UI_VERSION = "0.2.8";
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 
@@ -16,18 +17,24 @@ class ViewePanel extends HTMLElement {
     this.pageId = null;
     this.dirty = false;
     this.busy = false;
-    this.notice = "";
+    this.loadError = false;
     this.statusGeneration = 0;
   }
   t(key) { return (this.language === "uk" ? uk : en)[key] || en[key] || key; }
-  errorText(error) { const message=error.message || String(error); return this.language === "uk" ? message : englishError(message,this.t("requestFailed")); }
+  errorText(error) { const message=error?.message || String(error); return this.language === "uk" ? message : englishError(message,this.t("requestFailed")); }
+  notify(message,options={}) {
+    showToast(this,message,{detailsLabel:this.t("notificationDetails"),title:this.t("notificationError"),closeLabel:this.t("closeNotification"),...options});
+  }
+  notifyError(error,options={}) { this.notify(this.errorText(error),{error:true,...options}); }
+  clearFeedback() { closeToast(this); }
+  notifyResult(result) { this.notify(this.t(result),{error:["error","timeout","incompatible"].includes(result)}); }
   set hass(value) {
     const language = (value.locale?.language || value.language || "en").split("-")[0] === "uk" ? "uk" : "en";
     const changed = this.language !== language;
     const previous=this._hass;
     this.language = language;
     this._hass = value;
-    if (!this.data && !this.loading && this.isConnected) this.load();
+    if (!this.data && !this.loading && !this.loadError && this.isConnected) this.load();
     else if (changed && this.isConnected) this.render();
     else if(this.isConnected && this.tab==="panels" && !this.busy && this.shadowRoot.activeElement?.tagName!=="SELECT" && this.controlStatesChanged(previous,value))this.render();
   }
@@ -37,6 +44,8 @@ class ViewePanel extends HTMLElement {
     if (this._hass && !this.data) this.load();
   }
   disconnectedCallback() {
+    closeErrorDetails(this);
+    this.refreshError="";
     this.statusGeneration++;
     if(this.statusTimer)clearInterval(this.statusTimer);
     this.statusTimer=null;
@@ -52,12 +61,15 @@ class ViewePanel extends HTMLElement {
     try {
       const data=await this.api("get");
       if(!this.isConnected || generation!==this.statusGeneration || this.busy)return;
-      this.data=data;this.refreshError="";
+      this.data=data;
+      if(this.refreshError)closeToast(this,"viewe-editor-refresh");
+      this.refreshError="";
       if(this.tab==="panels" && this.shadowRoot.activeElement?.tagName!=="SELECT")this.render();
     } catch(error) {
       if(this.isConnected && generation===this.statusGeneration) {
-        this.refreshError=this.errorText(error);
-        if(this.tab==="panels" && this.shadowRoot.activeElement?.tagName!=="SELECT")this.render();
+        const message=this.errorText(error);
+        if(message!==this.refreshError)this.notify(message,{error:true,id:"viewe-editor-refresh"});
+        this.refreshError=message;
       }
     } finally {this.refreshing=false;}
   }
@@ -65,25 +77,26 @@ class ViewePanel extends HTMLElement {
     return this._hass.callWS({type:"viewe_smart_panel/editor", action, payload:{...payload, language:this.language || "en"}});
   }
   async load() {
-    this.loading = true;
+    if(this.loading)return;
+    this.loading = true;this.loadError=false;
     try { this.data = await this.api("get"); }
-    catch (error) { this.notice = this.errorText(error); }
+    catch (error) { this.loadError=true;this.notifyError(error); }
     finally { this.loading = false; this.render(); }
   }
   async perform(fn) {
     if (this.busy) return;
     this.busy = true;
-    this.notice = "";
+    this.clearFeedback();
     this.render();
     try { await fn(); }
-    catch (error) { this.notice = this.errorText(error); }
+    catch (error) { this.notifyError(error); }
     finally { this.busy = false; this.render(); }
   }
   async save() {
     this.draft = await this.api("save", {profile:this.draft});
     this.dirty = false;
     this.data = await this.api("get");
-    this.notice = this.t("savedNotice");
+    this.notify(this.t("savedNotice"));
   }
   leave() {
     return !this.dirty || window.confirm(this.t("discard"));
@@ -134,12 +147,11 @@ class ViewePanel extends HTMLElement {
   render() {
     const e = escapeHtml;
     const page = this.draft?.pages.find(p=>p.id === this.pageId);
-    let content = `<p>${this.t("loading")}</p>`;
+    let content = this.loadError ? `<div class="empty"><p>${this.t("loadFailed")}</p>${this.button("retry-load",this.t("retryLoad"))}</div>` : `<p>${this.t("loading")}</p>`;
     if (this.data) {
       if (this.tab === "panels") {
         content = `<h2>${this.t("panels")}</h2><p class="muted">${this.t("panelsHelp")}</p><p class="muted">${this.t("nativeHelp")}</p>`;
         if(this.data.native_setup_required)content+=`<section><h3>${this.t("connectDisplay")}</h3><p>${this.t("connectDisplayHelp")}</p></section>`;
-        if(this.refreshError)content+=`<p class="notice" role="status">${e(this.refreshError)}</p>`;
         const panels = Object.values(this.data.panels);
         if (!panels.length) content += `<div class="empty">${this.t("noPanels")}</div>`;
         for (const panel of panels) {
@@ -166,10 +178,10 @@ class ViewePanel extends HTMLElement {
     }
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;color:var(--primary-text-color,#172635);background:var(--primary-background-color,#f5f7fa);min-height:100vh;font-family:var(--paper-font-body1_-_font-family,system-ui)}
-      *{box-sizing:border-box}header{background:var(--card-background-color,#fff);padding:20px 28px;border-bottom:1px solid var(--divider-color,#ddd)}h1{font-size:22px;margin:0 0 16px}h2{font-size:24px}h3{margin:0 0 8px;font-size:17px}main{max-width:1050px;margin:auto;padding:24px}nav,.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:150px}section{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:14px;padding:20px;margin:16px 0}button,input,select{font:inherit;border:1px solid var(--divider-color,#ccc);border-radius:8px;padding:10px 14px;color:inherit;background:var(--card-background-color,#fff)}button{cursor:pointer}button.primary,nav button.selected{background:var(--primary-color,#087e8b);color:#fff;border-color:transparent}button:disabled{opacity:.5;cursor:default}label{display:block;margin:16px 0}label>input:not([type=checkbox]),label>select{display:block;width:100%;margin-top:8px}input[type=checkbox]{width:18px;height:18px;vertical-align:middle}label.check{margin:4px 0}.muted{color:var(--secondary-text-color,#667788);font-size:14px}.empty{padding:40px;text-align:center;border:1px dashed var(--divider-color,#ccc);border-radius:14px;margin-top:24px}.notice{padding:16px;background:var(--card-background-color,#fff);border-left:4px solid var(--primary-color,#087e8b);white-space:pre-line;border-radius:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}input:disabled{opacity:.5}@media(max-width:650px){main{padding:16px}.grid{grid-template-columns:1fr}.page{align-items:flex-start}header{padding:16px}}
+      *{box-sizing:border-box}header{background:var(--card-background-color,#fff);padding:20px 28px;border-bottom:1px solid var(--divider-color,#ddd)}h1{font-size:22px;margin:0 0 16px}h2{font-size:24px}h3{margin:0 0 8px;font-size:17px}main{max-width:1050px;margin:auto;padding:24px}nav,.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:150px}section{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:14px;padding:20px;margin:16px 0}button,input,select{font:inherit;border:1px solid var(--divider-color,#ccc);border-radius:8px;padding:10px 14px;color:inherit;background:var(--card-background-color,#fff)}button{cursor:pointer}button.primary,nav button.selected{background:var(--primary-color,#087e8b);color:#fff;border-color:transparent}button:disabled{opacity:.5;cursor:default}label{display:block;margin:16px 0}label>input:not([type=checkbox]),label>select{display:block;width:100%;margin-top:8px}input[type=checkbox]{width:18px;height:18px;vertical-align:middle}label.check{margin:4px 0}.muted{color:var(--secondary-text-color,#667788);font-size:14px}.empty{padding:40px;text-align:center;border:1px dashed var(--divider-color,#ccc);border-radius:14px;margin-top:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}input:disabled{opacity:.5}@media(max-width:650px){main{padding:16px}.grid{grid-template-columns:1fr}.page{align-items:flex-start}header{padding:16px}}
       .profile-controls{margin-top:18px;border-top:1px solid var(--divider-color,#ddd)}.profile-controls h4{margin-bottom:8px}.entity-control{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}
       .panel-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.panel-heading h3{margin:0;overflow-wrap:anywhere}.connection-badge{display:inline-flex;flex-shrink:0;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}.connection-badge.online{color:#38d079;background:#163c29}.connection-badge.offline{color:#ff7869;background:#4a2420}.connection-badge svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-    </style><header><h1>VIEWE Smart Panel <span class="muted">v${UI_VERSION}</span></h1><nav>${this.button("profiles",this.t("profiles"),"",this.tab==="profiles")}${this.button("panels",this.t("panels"),"",this.tab==="panels")}${this.button("refresh",this.t("refresh"))}</nav></header><main>${this.notice ? `<p class="notice" role="status">${e(this.notice)}</p>` : ""}${content}</main>`;
+    </style><header><h1>VIEWE Smart Panel <span class="muted">v${UI_VERSION}</span></h1><nav>${this.button("profiles",this.t("profiles"),"",this.tab==="profiles")}${this.button("panels",this.t("panels"),"",this.tab==="panels")}${this.button("refresh",this.t("refresh"))}</nav></header><main>${content}</main>`;
     if(this.busy) this.shadowRoot.querySelectorAll("input,select").forEach(el=>el.disabled=true);
     this.bind();
   }
@@ -266,7 +278,7 @@ class ViewePanel extends HTMLElement {
     root.querySelectorAll("[data-panel]").forEach(el=>el.addEventListener("change",()=>this.perform(async()=> {
       const result = await this.api("assign",{panel_id:el.dataset.panel,profile_id:el.value || null});
       this.data = await this.api("get");
-      this.notice = this.t(result);
+      this.notifyResult(result);
     })));
     root.querySelectorAll("[draggable]").forEach(el=> {
       el.addEventListener("dragstart",event=>event.dataTransfer.setData("text/plain",el.dataset.index));
@@ -287,6 +299,7 @@ class ViewePanel extends HTMLElement {
     if(indicator)indicator.textContent=this.t("unsaved");
   }
   action(action,id,panelId) {
+    if(action==="retry-load")return this.load();
     if(action==="entity-info" || action==="entity-control") {
       const panel=this.data.panels[panelId];
       const entry=profileEntities(this.data.applied?.[panel?.profile_id]).find(item=>item.key===id);
@@ -299,26 +312,26 @@ class ViewePanel extends HTMLElement {
         const operation=controlAction(entry,this._hass.states || {});
         if(!operation)throw new Error(this.t("controlUnavailable"));
         await this._hass.callService(operation.domain,operation.service,operation.data);
-        this.notice=this.t("controlSent");
+        this.notify(this.t("controlSent"));
       });
     }
     if(action==="delete-panel") {
       if(!window.confirm(this.t("deletePanelConfirm")))return;
       return this.perform(async()=> {
         await this.api("delete_panel",{panel_id:id});
-        this.data=await this.api("get");this.notice=this.t("panelDeleted");
+        this.data=await this.api("get");this.notify(this.t("panelDeleted"));
       });
     }
     if(action==="resume-profile")return this.perform(async()=> {
       const result=await this.api("assign",{panel_id:id,profile_id:this.data.panels[id].profile_id});
-      this.data=await this.api("get");this.notice=this.t(result);
+      this.data=await this.api("get");this.notifyResult(result);
     });
     if(action==="delete-profile") {
       if(!window.confirm(this.t("deleteProfileConfirm")))return;
       return this.perform(async()=> {
         if(Object.values(this.data.panels).some(p=>p.profile_id===id))throw new Error(this.t("deleteAssigned"));
         await this.api("delete",{profile_id:id,revision:this.data.profiles[id].revision});
-        this.data=await this.api("get");this.notice=this.t("deleted");
+        this.data=await this.api("get");this.notify(this.t("deleted"));
       });
     }
     if (action==="profiles" || action==="panels") {if(!this.leave())return;this.draft=null;this.dirty=false;this.pageId=null;this.tab=action;this.render();return;}
@@ -330,7 +343,7 @@ class ViewePanel extends HTMLElement {
     // Capture input before perform() redraws the DOM.
     const name=this.shadowRoot.querySelector("#new-name")?.value.trim();
     const template=this.shadowRoot.querySelector("#template")?.value;
-    this.perform(async()=> {
+    return this.perform(async()=> {
       if (action==="create") {if(!name)throw new Error(this.t("enterName"));this.draft=await this.api("create",{name});this.pageId=null;this.dirty=false;this.data=await this.api("get");}
       if (action==="save") await this.save();
       if (action==="apply") {
@@ -338,10 +351,10 @@ class ViewePanel extends HTMLElement {
         const result=await this.api("apply",{profile_id:this.draft.id});
         this.data=await this.api("get");
         const panels=Object.entries(result.panels);
-        this.notice=panels.length ? panels.map(([panel,status])=>`${this.data.panels[panel]?.name || panel}: ${this.t(status)}`).join("\n") : this.t("applyNoPanels");
+        this.notify(panels.length ? panels.map(([panel,status])=>`${this.data.panels[panel]?.name || panel}: ${this.t(status)}`).join("\n") : this.t("applyNoPanels"),{error:panels.some(([,status])=>["error","timeout","incompatible"].includes(status))});
       }
       if (action==="add") {const page=await this.api("page",{template});this.draft.pages.push(page);this.pageId=page.id;this.dirty=true;}
-      if (action==="refresh") {this.data=await this.api("refresh");this.notice=this.t("refreshed");}
+      if (action==="refresh") {this.data=await this.api("refresh");this.notify(this.t("refreshed"));}
     });
   }
 }

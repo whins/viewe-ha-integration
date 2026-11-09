@@ -157,3 +157,16 @@
   Display firmware was installed via COM10 with verified flash. Publication
   of both repositories and the 0.2.7 release is explicitly authorized. The
   user updates Home Assistant independently through HACS.
+
+- 2026-11-08: Version 0.2.8 replaces inline editor feedback banners with native
+  hass-notification toasts (4s success, dismissible errors with full Details).
+  Error details use a native modal dialog with plain text; rendering/polling
+  does not destroy it. Repeated background errors are deduplicated and recover
+  automatically; initial loading failures have explicit Retry, no state-update
+  retry loop. Persistent HA notifications cover assigned-panel offline >=300s
+  and profile delivery failures >=120s, checked every 30s. Exclude deliberate
+  local overrides/unassigned panels; one scoped ID per panel/episode, cleanup
+  on recovery/unassign/delete/unload. Add persistent_notification dependency.
+  Firmware is unchanged. Local checks: 92 Python and 44 frontend tests passed;
+  actual HA verification is still pending. On 2026-11-09 the user authorized
+  publication of this version; HA installation remains user-managed via HACS.

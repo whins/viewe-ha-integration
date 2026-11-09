@@ -18,6 +18,7 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from .const import DOMAIN, PROTOCOL_VERSION, STORAGE_VERSION
 from .native_hub import NativeHubMixin
 from .native import encode_profile
+from .notifications import PanelNotifications
 from .models import new_profile, validate_profile, panel_compatible
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class VieweHub(NativeHubMixin):
         self.forecast_cache = {}
         self.unsubscribers = []
         self.lock = asyncio.Lock()
+        self.notifications = PanelNotifications(hass, prefix)
 
     async def async_start(self):
         saved = await self.store.async_load()
@@ -77,6 +79,7 @@ class VieweHub(NativeHubMixin):
 
     @callback
     def async_stop(self):
+        self.notifications.close()
         for unsubscribe in self.unsubscribers:
             unsubscribe()
         self.unsubscribers.clear()
@@ -109,6 +112,27 @@ class VieweHub(NativeHubMixin):
                 self.results[panel_id] = "timeout"
                 self.native_pending.pop(panel_id, None)
         await self._native_poll()
+        self._sync_notifications()
+
+    def _sync_notifications(self):
+        problems = {}
+        for panel_id, panel in self.data["panels"].items():
+            profile_id = panel.get("profile_id")
+            profile = self.data["applied"].get(profile_id)
+            result = self.results.get(panel_id)
+            if not profile or result == "local_override":
+                continue
+            if not self._panel_online(panel_id):
+                reason = "offline"
+            elif result in {"error", "timeout", "incompatible"}:
+                reason = "delivery"
+            else:
+                continue
+            problems[panel_id] = {
+                "profile_id": profile_id, "revision": profile["revision"], "reason": reason,
+                "name": panel.get("name", panel_id), "profile_name": profile.get("name", profile_id),
+            }
+        self.notifications.update(problems, monotonic())
 
     def snapshot(self):
         result = deepcopy(self.data)
@@ -122,6 +146,7 @@ class VieweHub(NativeHubMixin):
     async def _persist(self, updated):
         await self.store.async_save(updated)
         self.data = updated
+        self._sync_notifications()
 
     async def async_delete_panel(self, panel_id):
         """Forget only the VIEWE record; leave the HA device and panel untouched."""

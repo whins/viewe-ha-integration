@@ -1,4 +1,5 @@
 import test from "node:test";
+import {showToast,closeErrorDetails} from "../custom_components/viewe_smart_panel/frontend/notifications.js";
 import {profileEntities,controlAction} from "../custom_components/viewe_smart_panel/frontend/profile-controls.js";
 import {readFileSync} from "node:fs";
 const packageVersion=JSON.parse(readFileSync(new URL("../custom_components/viewe_smart_panel/manifest.json",import.meta.url),"utf8")).version;
@@ -9,6 +10,8 @@ import {englishError} from "../custom_components/viewe_smart_panel/frontend/loca
 
 let Panel,registeredName;
 globalThis.HTMLElement=class {
+  constructor() {this.events=[];}
+  dispatchEvent(event) {this.events.push(event);return true;}
   attachShadow() { this.shadowRoot={innerHTML:"",querySelector:()=>null,querySelectorAll:()=>[]}; }
 };
 globalThis.customElements={define:(name,component)=>{registeredName=name;Panel=component;}};
@@ -70,7 +73,7 @@ test("Deletion sends displayed revision and refreshes profiles",async()=> {
   panel.api=async(action,payload)=>{calls.push([action,payload]);return {profiles:{},panels:{},applied:{},entities:[]};};
   await panel.action("delete-profile","p");
   assert.deepEqual(calls[0],["delete",{profile_id:"p",revision:3}]);
-  assert.equal(panel.notice,"Profile deleted");
+  assert.equal(panel.events.find(event=>event.type==="hass-notification" && event.detail.duration===4000).detail.message,"Profile deleted");
 });
 
 test("Server validation errors remain useful in English",()=> {
@@ -398,4 +401,66 @@ test("Theme selection updates only the selected clock and preserves name, label 
  panel.shadowRoot.querySelectorAll=selector=>selector==="[data-field]" ? [input] : [];
  panel.markDirty=()=>{panel.dirty=true;};panel.render=()=>{};panel.bind();handlers.change();
  assert.equal(panel.draft.pages[0].theme,"seconds_ring");assert.equal(panel.draft.pages[0].format,"12h");assert.equal(panel.draft.pages[0].name,"Desk clock");assert.equal(panel.draft.pages[0].label,"Desk");assert.equal(panel.draft.pages[1].theme,"analog");assert.equal(panel.dirty,true);
+});
+
+
+test("Success feedback uses HA toast for four seconds without changing panel markup",()=> {
+ const panel=new Panel();panel.language="en";panel.data={profiles:{},applied:{},panels:{},entities:[]};panel.render();
+ const before=panel.shadowRoot.innerHTML;panel.notify("Saved");
+ const event=panel.events.at(-1);
+ assert.equal(event.type,"hass-notification");assert.equal(event.detail.message,"Saved");assert.equal(event.detail.duration,4000);
+ assert.equal(event.bubbles,true);assert.equal(event.composed,true);assert.equal(panel.shadowRoot.innerHTML,before);
+ assert.doesNotMatch(before,/class="notice"/);
+});
+
+test("Action errors remain dismissible and expose localized details without an inline banner",async()=> {
+ const panel=new Panel();panel.language="uk";panel.data={profiles:{},applied:{},panels:{},entities:[]};
+ await panel.perform(async()=>{throw new Error("Помилка збереження");});
+ const event=panel.events.find(e=>e.type==="hass-notification" && e.detail.duration===-1);
+ assert.equal(event.detail.message,"Помилка збереження");assert.equal(event.detail.dismissable,true);assert.equal(event.detail.action.text,"Подробиці");
+ assert.equal(typeof event.detail.action.action,"function");assert.equal(panel.busy,false);assert.doesNotMatch(panel.shadowRoot.innerHTML,/class="notice"|Помилка збереження/);
+});
+
+test("Repeated background failures notify once and recovery closes only their toast",async()=> {
+ const panel=new Panel();panel.language="en";panel.isConnected=true;panel.tab="profiles";panel.data={profiles:{},applied:{},panels:{},entities:[]};panel._hass={};
+ panel.api=async()=>{throw new Error("Network unavailable");};panel.render=()=>{throw new Error("A polling error must not redraw the editor");};
+ await panel.refreshStatus();await panel.refreshStatus();
+ assert.equal(panel.events.filter(e=>e.detail.duration===-1).length,1);
+ assert.equal(panel.events.at(-1).detail.id,"viewe-editor-refresh");
+ panel.api=async()=>panel.data;await panel.refreshStatus();
+ assert.equal(panel.refreshError,"");assert.equal(panel.events.at(-1).detail.duration,0);assert.equal(panel.events.at(-1).detail.id,"viewe-editor-refresh");
+});
+
+test("Failed first load has an explicit retry and hass state changes do not hammer the server",async()=> {
+ const panel=new Panel();panel.language="en";panel.isConnected=true;let calls=0;
+ panel._hass={language:"en",callWS:async()=>{calls++;throw new Error("Unavailable");}};
+ await panel.load();assert.equal(calls,1);assert.equal(panel.loadError,true);assert.match(panel.shadowRoot.innerHTML,/retry-load/);
+ panel.hass={...panel._hass};assert.equal(calls,1);
+ const data={profiles:{},applied:{},panels:{},entities:[]};panel._hass={language:"en",callWS:async()=>{calls++;return data;}};
+ await panel.action("retry-load");assert.equal(calls,2);assert.equal(panel.loadError,false);assert.equal(panel.data,data);
+});
+
+test("Error details keep full untrusted text as text and survive editor redraws until closed",()=> {
+ const original=globalThis.document;const nodes=[];
+ function element(tag) {
+  const item={tag,children:[],open:false,removed:false,listeners:{},setAttribute(name,value){this[name]=value;},append(...children){this.children.push(...children);},addEventListener(name,fn){this.listeners[name]=fn;},showModal(){this.open=true;},close(){this.open=false;this.listeners.close?.();},remove(){this.removed=true;}};
+  nodes.push(item);return item;
+ }
+ globalThis.document={createElement:element,body:{append:element=>{element.appended=true;}}};
+ try {
+  const host=new Panel();host.isConnected=true;const message="<script>bad()</script>\n"+"long message ".repeat(30);
+  showToast(host,message,{error:true,title:"Details",closeLabel:"Close",detailsLabel:"Show details"});
+  const event=host.events.at(-1);assert.ok(event.detail.message.length<=180);event.detail.action.action();
+  const dialog=host._vieweErrorDialog;assert.equal(dialog.open,true);assert.equal(dialog.appended,true);
+  const pre=nodes.find(item=>item.tag==="pre");assert.equal(pre.textContent,message);assert.equal(pre.innerHTML,undefined);
+  host.shadowRoot.innerHTML="Editor refreshed";assert.equal(dialog.open,true);assert.equal(dialog.removed,false);
+  host.disconnectedCallback();assert.equal(dialog.open,false);assert.equal(dialog.removed,true);assert.equal(host._vieweErrorDialog,null);
+  host.isConnected=false;event.detail.action.action();assert.equal(host._vieweErrorDialog.open,true);closeErrorDetails(host);assert.equal(host._vieweErrorDialog,null);
+ } finally {globalThis.document=original;}
+});
+
+test("Terminal profile results are error toasts while pending/offline remain transient feedback",()=> {
+ const panel=new Panel();panel.language="en";
+ for(const result of ["error","timeout","incompatible"]) {panel.notifyResult(result);assert.equal(panel.events.at(-1).detail.duration,-1);}
+ for(const result of ["pending","offline","applied"]) {panel.notifyResult(result);assert.equal(panel.events.at(-1).detail.duration,4000);}
 });

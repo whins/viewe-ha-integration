@@ -146,5 +146,10 @@ export default {
   "digital": "Великий цифровий",
   "stacked": "Два рядки",
   "analog": "Аналоговий",
-  "seconds_ring": "Секундне кільце"
+  "seconds_ring": "Секундне кільце",
+  "notificationDetails": "Подробиці",
+  "notificationError": "Не вдалося виконати дію",
+  "closeNotification": "Закрити",
+  "loadFailed": "Не вдалося завантажити редактор VIEWE.",
+  "retryLoad": "Спробувати ще раз"
 };
